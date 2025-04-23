@@ -174,8 +174,9 @@ uint32_t sensor_mc_cadence_set(uint8_t index,
                                uint16_t in_bytes)
 {
     if (in_bytes > SENSOR_CADENCE_STATUS_MAX) {
-        NRF_LOG_ERROR("%s(): invalid cadence configuration for property 0x%x",
-                      __func__, property_id);
+        __LOG(LOG_SRC_APP, LOG_LEVEL_ERROR,
+              "ERR: Sensor server: invalid cadence configuration for property 0x%x\n",
+              property_id);
         return NRF_SUCCESS;
     }
 
