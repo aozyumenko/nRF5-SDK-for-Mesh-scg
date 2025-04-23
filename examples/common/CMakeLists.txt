@@ -1,6 +1,7 @@
 set(COMMON_EXAMPLES_SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/app_error_weak.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/app_onoff.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/app_ponoff.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/app_light_lightness.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/app_light_lc.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/app_level.c"
