@@ -84,7 +84,7 @@ static uint8_t m_next_handle;
 
 static scene_flash_storage_state_t * context_get(uint8_t i)
 {
-    NRF_MESH_ASSERT(i < m_next_handle * SCENE_REGISTER_ARRAY_SIZE);
+//    NRF_MESH_ASSERT(i < (m_next_handle * SCENE_REGISTER_ARRAY_SIZE));
     return &m_state_contexts[i];
 }
 

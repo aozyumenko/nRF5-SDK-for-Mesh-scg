@@ -150,10 +150,11 @@ static void id_record_to_address_array_index(uint16_t id_record, uint16_t * p_ad
 }
 
 #if SCENE_SETUP_SERVER_INSTANCES_MAX > 0
-static uint16_t level_instance_scene_index_to_id_record(uint8_t scene_index,
-                                                        uint8_t level_instance_index)
+static uint16_t level_instance_scene_index_to_id_record(uint8_t level_instance_index,
+                                                        uint8_t scene_index)
 {
-    return (level_instance_index +  (GENERIC_LEVEL_SERVER_INSTANCES_MAX  * (scene_index + 1)));
+    uint8_t array_index = scene_index % SCENE_REGISTER_ARRAY_SIZE;
+    return level_instance_index  + (GENERIC_LEVEL_SERVER_INSTANCES_MAX * (array_index + 1));
 }
 #endif
 
@@ -222,7 +223,7 @@ uint32_t generic_level_mc_scene_level_store(uint8_t index, uint8_t scene_index, 
 {
     mesh_config_entry_id_t id = GENERIC_LEVEL_EID;
 
-    id.record += level_instance_scene_index_to_id_record(index, (scene_index + 1));
+    id.record += level_instance_scene_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_set(id, &value);
 }
@@ -231,7 +232,7 @@ uint32_t generic_level_mc_scene_level_recall(uint8_t index, uint8_t scene_index,
 {
     mesh_config_entry_id_t id = GENERIC_LEVEL_EID;
 
-    id.record += level_instance_scene_index_to_id_record(index, (scene_index + 1));
+    id.record += level_instance_scene_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_get(id, p_value);
 }

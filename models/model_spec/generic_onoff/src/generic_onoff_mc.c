@@ -138,10 +138,11 @@ static void id_record_to_address_array_index(uint16_t id_record, uint16_t * p_ad
     *p_address = shift - (*p_array_index * GENERIC_ONOFF_SERVER_INSTANCES_MAX);
 }
 #if SCENE_SETUP_SERVER_INSTANCES_MAX > 0
-static uint16_t onoff_instance_scene_index_to_id_record(uint8_t scene_index,
-                                                        uint8_t onoff_instance_index)
+static uint16_t onoff_instance_scene_index_to_id_record(uint8_t onoff_instance_index,
+                                                        uint8_t scene_index)
 {
-    return (onoff_instance_index +  (GENERIC_ONOFF_SERVER_INSTANCES_MAX  * (scene_index + 1)));
+    uint8_t array_index = scene_index % SCENE_REGISTER_ARRAY_SIZE;
+    return onoff_instance_index  + (GENERIC_ONOFF_SERVER_INSTANCES_MAX * (array_index + 1));
 }
 #endif
 
@@ -211,7 +212,7 @@ uint32_t generic_onoff_mc_scene_onoff_store(uint8_t scene_index, uint8_t onoff_i
 {
     mesh_config_entry_id_t id = GENERIC_ONOFF_EID;
 
-    id.record += onoff_instance_scene_index_to_id_record(scene_index, onoff_index);
+    id.record += onoff_instance_scene_index_to_id_record(onoff_index, scene_index);
     return mesh_config_entry_set(id, &value);
 }
 
@@ -219,7 +220,7 @@ uint32_t generic_onoff_mc_scene_onoff_recall(uint8_t scene_index, uint8_t onoff_
 {
     mesh_config_entry_id_t id = GENERIC_ONOFF_EID;
 
-    id.record += onoff_instance_scene_index_to_id_record(scene_index, onoff_index);
+    id.record += onoff_instance_scene_index_to_id_record(onoff_index, scene_index);
     return mesh_config_entry_get(id, p_value);
 }
 
