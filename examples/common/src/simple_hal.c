@@ -75,6 +75,7 @@ static uint32_t m_prev_state;
 static const uint8_t m_leds_list[LEDS_NUMBER] = LEDS_LIST;
 #endif
 
+#if BUTTON_BOARD
 static void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     for (uint32_t i = 0; i < ARRAY_SIZE(m_buttons_list); i++)
@@ -91,6 +92,7 @@ static void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t ac
         }
     }
 }
+#endif
 
 static uint32_t hal_led_mask_state_get(uint32_t led_mask)
 {
