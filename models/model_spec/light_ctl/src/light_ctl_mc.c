@@ -231,9 +231,10 @@ static void id_record_to_address_array_index(uint16_t id_record, uint16_t start,
 
 #if SCENE_SETUP_SERVER_INSTANCES_MAX > 0
 static uint16_t ctl_instance_index_array_index_to_id_record(uint8_t ctl_instance_index,
-                                                            uint8_t array_index)
+                                                            uint8_t scene_index)
 {
-    return (ctl_instance_index + (LIGHT_CTL_SETUP_SERVER_INSTANCES_MAX * array_index));
+    uint8_t array_index = scene_index % SCENE_REGISTER_ARRAY_SIZE;
+    return ctl_instance_index  + (LIGHT_CTL_SETUP_SERVER_INSTANCES_MAX * (array_index + 1));
 }
 #endif
 
@@ -435,7 +436,7 @@ uint32_t light_ctl_mc_scene_temperature32_state_store(uint8_t index, uint8_t sce
 {
     mesh_config_entry_id_t id = LIGHT_CTL_TEMPERATURE_EID;
 
-    id.record += ctl_instance_index_array_index_to_id_record(index, (scene_index + 1));
+    id.record += ctl_instance_index_array_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_set(id, &value);
 }
@@ -444,7 +445,7 @@ uint32_t light_ctl_mc_scene_temperature32_state_recall(uint8_t index, uint8_t sc
 {
     mesh_config_entry_id_t id = LIGHT_CTL_TEMPERATURE_EID;
 
-    id.record += ctl_instance_index_array_index_to_id_record(index, (scene_index + 1));
+    id.record += ctl_instance_index_array_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_get(id, p_value);
 }
@@ -453,7 +454,7 @@ uint32_t light_ctl_mc_scene_delta_uv_state_store(uint8_t index, uint8_t scene_in
 {
     mesh_config_entry_id_t id = LIGHT_CTL_DELTA_UV_EID;
 
-    id.record += ctl_instance_index_array_index_to_id_record(index, (scene_index + 1));
+    id.record += ctl_instance_index_array_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_set(id, &value);
 }
@@ -462,7 +463,7 @@ uint32_t light_ctl_mc_scene_delta_uv_state_recall(uint8_t index, uint8_t scene_i
 {
     mesh_config_entry_id_t id = LIGHT_CTL_DELTA_UV_EID;
 
-    id.record += ctl_instance_index_array_index_to_id_record(index, (scene_index + 1));
+    id.record += ctl_instance_index_array_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_set(id, p_value);
 }

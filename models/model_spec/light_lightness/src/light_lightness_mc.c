@@ -279,9 +279,10 @@ static void id_record_to_address_array_index(uint16_t id_record,
 
 #if SCENE_SETUP_SERVER_INSTANCES_MAX > 0
 static uint16_t ll_instance_index_array_index_to_id_record(uint8_t ll_instance_index,
-                                                       uint8_t array_index)
+                                                           uint8_t scene_index)
 {
-    return (ll_instance_index + (LIGHT_LIGHTNESS_SETUP_SERVER_INSTANCES_MAX * array_index));
+    uint8_t array_index = scene_index % SCENE_REGISTER_ARRAY_SIZE;
+    return ll_instance_index  + (LIGHT_LIGHTNESS_SETUP_SERVER_INSTANCES_MAX * (array_index + 1));
 }
 #endif
 
@@ -624,7 +625,7 @@ uint32_t light_lightness_mc_scene_actual_state_store(uint8_t index, uint8_t scen
 {
     mesh_config_entry_id_t id = LIGHT_LIGHTNESS_ACTUAL_EID;
 
-    id.record += ll_instance_index_array_index_to_id_record(index, (scene_index + 1));
+    id.record += ll_instance_index_array_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_set(id, &value);
 }
@@ -634,7 +635,7 @@ uint32_t light_lightness_mc_scene_actual_state_recall(uint8_t index, uint8_t sce
 {
     mesh_config_entry_id_t id = LIGHT_LIGHTNESS_ACTUAL_EID;
 
-    id.record += ll_instance_index_array_index_to_id_record(index, (scene_index + 1));
+    id.record += ll_instance_index_array_index_to_id_record(index, scene_index);
 
     return mesh_config_entry_get(id, p_value);
 }
