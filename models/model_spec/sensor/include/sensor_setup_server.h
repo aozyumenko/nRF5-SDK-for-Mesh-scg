@@ -302,6 +302,10 @@ typedef struct
     const sensor_setup_server_callbacks_t * p_callbacks;
 } sensor_setup_server_settings_t;
 
+typedef struct {
+    uint8_t handle;
+} sensor_setup_server_state_t;
+
 /**  */
 struct __sensor_setup_server_t
 {
@@ -316,6 +320,10 @@ struct __sensor_setup_server_t
     /** Model settings and callbacks for this instance.
      */
     sensor_setup_server_settings_t settings;
+
+    /** State for this instance.
+     */
+    sensor_setup_server_state_t state;
 };
 
 /**

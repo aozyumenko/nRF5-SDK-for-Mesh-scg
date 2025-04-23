@@ -75,8 +75,6 @@
  */
 
 
-typedef uint8_t pir_data_size_t;
-
 /* Forward declaration */
 typedef struct __app_sensor_server_t app_sensor_server_t;
 
@@ -344,6 +342,22 @@ struct __app_sensor_server_t
  * @retval NRF_ERROR_NOT_FOUND      Invalid access element index.
 */
 uint32_t app_sensor_init(app_sensor_server_t * p_server, uint16_t element_index);
+
+
+/** Restores the cadence value from persistent storage
+ *
+ * This is called by main.c when the mesh is initialized and stable.
+ * Note that this function must be called from the same IRQ level that
+ * mesh_init() is set at.
+ *
+ * @param[in] p_server               Pointer to [app_sensor_server_t](@ref __app_sensor_server_t)
+ *                                   context.
+ *
+ * @retval NRF_SUCCESS               Value is restored successfully
+ * @retval NRF_ERROR_NULL            If NULL pointer is provided as input context
+ */
+
+uint32_t app_sensor_cadence_restore(app_sensor_server_t * p_server);
 
 /** @} end of APP_SENSOR */
 

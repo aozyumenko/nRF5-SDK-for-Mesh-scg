@@ -56,10 +56,13 @@ typedef struct
     uint16_t    light_lightness_instance_count;
     uint16_t    light_lc_instance_count;
     uint16_t    light_ctl_instance_count;
+    uint16_t    light_hsl_instance_count;
     uint16_t    generic_onoff_root_only_instance_count;
+    uint16_t    generic_ponoff_root_only_instance_count;
     uint16_t    generic_level_root_only_instance_count;
     uint16_t    generic_dtt_root_only_instance_count;
     uint16_t    scene_instance_count;
+    uint16_t    sensor_instance_count;
 } model_config_file_metadata_t;
 
 typedef struct
@@ -96,10 +99,13 @@ static void metadata_store(void)
         .light_lightness_instance_count = LIGHT_LIGHTNESS_SETUP_SERVER_INSTANCES_MAX,
         .light_lc_instance_count = LIGHT_LC_SETUP_SERVER_INSTANCES_MAX,
         .light_ctl_instance_count = LIGHT_CTL_SETUP_SERVER_INSTANCES_MAX,
+        .light_hsl_instance_count = LIGHT_HSL_SETUP_SERVER_INSTANCES_MAX,
         .generic_onoff_root_only_instance_count = GENERIC_ONOFF_SERVER_INSTANCES_MAX,
+        .generic_ponoff_root_only_instance_count = GENERIC_PONOFF_SERVER_INSTANCES_MAX,
         .generic_level_root_only_instance_count = GENERIC_LEVEL_SERVER_INSTANCES_MAX,
         .generic_dtt_root_only_instance_count = GENERIC_DTT_SERVER_INSTANCES_MAX,
-        .scene_instance_count = SCENE_SETUP_SERVER_INSTANCES_MAX
+        .scene_instance_count = SCENE_SETUP_SERVER_INSTANCES_MAX,
+        .sensor_instance_count = SENSOR_SETUP_SERVER_INSTANCES_MAX
     };
 
     NRF_MESH_ERROR_CHECK(mesh_config_entry_set(entry_id, &metadata));
@@ -132,10 +138,13 @@ static uint32_t model_config_file_metadata_setter(mesh_config_entry_id_t id, con
     if ((p_metadata->light_lightness_instance_count == LIGHT_LIGHTNESS_SETUP_SERVER_INSTANCES_MAX) &&
         (p_metadata->light_lc_instance_count == LIGHT_LC_SETUP_SERVER_INSTANCES_MAX) &&
         (p_metadata->light_ctl_instance_count == LIGHT_CTL_SETUP_SERVER_INSTANCES_MAX) &&
+        (p_metadata->light_hsl_instance_count == LIGHT_HSL_SETUP_SERVER_INSTANCES_MAX) &&
         (p_metadata->generic_onoff_root_only_instance_count == GENERIC_ONOFF_SERVER_INSTANCES_MAX) &&
+        (p_metadata->generic_ponoff_root_only_instance_count == GENERIC_PONOFF_SERVER_INSTANCES_MAX) &&
         (p_metadata->generic_level_root_only_instance_count == GENERIC_LEVEL_SERVER_INSTANCES_MAX) &&
         (p_metadata->generic_dtt_root_only_instance_count == GENERIC_DTT_SERVER_INSTANCES_MAX) &&
-        (p_metadata->scene_instance_count == SCENE_SETUP_SERVER_INSTANCES_MAX))
+        (p_metadata->scene_instance_count == SCENE_SETUP_SERVER_INSTANCES_MAX) &&
+        (p_metadata->sensor_instance_count == SENSOR_SETUP_SERVER_INSTANCES_MAX))
     {
         m_status.is_metadata_stored = 1;
     }
@@ -155,10 +164,13 @@ static void model_config_file_metadata_getter(mesh_config_entry_id_t id, void * 
     p_metadata->light_lightness_instance_count = LIGHT_LIGHTNESS_SETUP_SERVER_INSTANCES_MAX;
     p_metadata->light_lc_instance_count = LIGHT_LC_SETUP_SERVER_INSTANCES_MAX;
     p_metadata->light_ctl_instance_count = LIGHT_CTL_SETUP_SERVER_INSTANCES_MAX;
+    p_metadata->light_hsl_instance_count = LIGHT_HSL_SETUP_SERVER_INSTANCES_MAX;
     p_metadata->generic_onoff_root_only_instance_count = GENERIC_ONOFF_SERVER_INSTANCES_MAX;
+    p_metadata->generic_ponoff_root_only_instance_count = GENERIC_PONOFF_SERVER_INSTANCES_MAX;
     p_metadata->generic_level_root_only_instance_count = GENERIC_LEVEL_SERVER_INSTANCES_MAX;
     p_metadata->generic_dtt_root_only_instance_count = GENERIC_DTT_SERVER_INSTANCES_MAX;
     p_metadata->scene_instance_count = SCENE_SETUP_SERVER_INSTANCES_MAX;
+    p_metadata->sensor_instance_count = SENSOR_SETUP_SERVER_INSTANCES_MAX;
 }
 
 
@@ -167,6 +179,9 @@ __WEAK void generic_level_mc_init(void)
 {}
 
 __WEAK void generic_onoff_mc_init(void)
+{}
+
+__WEAK void generic_ponoff_mc_init(void)
 {}
 
 __WEAK void light_lightness_mc_init(void)
@@ -178,16 +193,28 @@ __WEAK void light_lc_mc_init(void)
 __WEAK void light_ctl_mc_init(void)
 {}
 
+__WEAK void light_hsl_mc_init(void)
+{}
+
 __WEAK void scene_mc_init(void)
 {}
 
 __WEAK void generic_dtt_mc_init(void)
 {}
 
+__WEAK void sensor_mc_init(void)
+{}
+
+__WEAK void vendor_mc_init(void)
+{}
+
 __WEAK void generic_level_mc_clear(void)
 {}
 
 __WEAK void generic_onoff_mc_clear(void)
+{}
+
+__WEAK void generic_ponoff_mc_clear(void)
 {}
 
 __WEAK void light_lightness_mc_clear(void)
@@ -199,21 +226,34 @@ __WEAK void light_lc_mc_clear(void)
 __WEAK void light_ctl_mc_clear(void)
 {}
 
+__WEAK void light_hsl_mc_clear(void)
+{}
+
 __WEAK void scene_mc_clear(void)
 {}
 
 __WEAK void generic_dtt_mc_clear(void)
 {}
 
+__WEAK void sensor_mc_clear(void)
+{}
+
+__WEAK void vendor_mc_clear(void)
+{}
+
 static void model_config_clear(void)
 {
     generic_level_mc_clear();
     generic_onoff_mc_clear();
+    generic_ponoff_mc_clear();
     light_lightness_mc_clear();
     light_lc_mc_clear();
     light_ctl_mc_clear();
+    light_hsl_mc_clear();
     scene_mc_clear();
     generic_dtt_mc_clear();
+    sensor_mc_clear();
+    vendor_mc_clear();
 }
 
 void model_config_file_init(void)
@@ -225,11 +265,15 @@ void model_config_file_init(void)
 
     generic_level_mc_init();
     generic_onoff_mc_init();
+    generic_ponoff_mc_init();
     light_lightness_mc_init();
     light_lc_mc_init();
     light_ctl_mc_init();
+    light_hsl_mc_init();
     scene_mc_init();
     generic_dtt_mc_init();
+    sensor_mc_init();
+    vandor_mc_init();
 }
 
 uint32_t model_config_file_config_apply(void)

@@ -1,6 +1,7 @@
 set(SENSOR_SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_client.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_setup_server.c")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_setup_server.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_mc.c")
 
 set(SENSOR_CLIENT_SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_client.c"
@@ -12,6 +13,7 @@ set(SENSOR_CLIENT_INCLUDE_DIRS
 
 set(SENSOR_SETUP_SERVER_SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_setup_server.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_mc.c"
     "${MODEL_COMMON_SOURCE_FILES}" CACHE INTERNAL "")
 
 set(SENSOR_SETUP_SERVER_INCLUDE_DIRS

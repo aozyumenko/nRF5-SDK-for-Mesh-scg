@@ -76,6 +76,13 @@
 #endif
 
 /**
+ * The number of the Generic Power OnOff Server (independent, root only) instances used by the application.
+ */
+#ifndef GENERIC_PONOFF_SERVER_INSTANCES_MAX
+#define GENERIC_PONOFF_SERVER_INSTANCES_MAX  (0)
+#endif
+
+/**
  * The number of the Light Lightness Setup Server instances used by the application.
  */
 #ifndef LIGHT_LIGHTNESS_SETUP_SERVER_INSTANCES_MAX
@@ -94,6 +101,20 @@
  */
 #ifndef LIGHT_CTL_SETUP_SERVER_INSTANCES_MAX
 #define LIGHT_CTL_SETUP_SERVER_INSTANCES_MAX (0)
+#endif
+
+/**
+ * The number of the Light HSL Setup Server instances used by the application
+ */
+#ifndef LIGHT_HSL_SETUP_SERVER_INSTANCES_MAX
+#define LIGHT_HSL_SETUP_SERVER_INSTANCES_MAX (0)
+#endif
+
+/**
+ * The number of the Sensor Setup Server instances used by the application
+ */
+#ifndef SENSOR_SETUP_SERVER_INSTANCES_MAX
+#define SENSOR_SETUP_SERVER_INSTANCES_MAX (0)
 #endif
 
 /**

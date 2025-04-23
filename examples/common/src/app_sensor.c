@@ -46,6 +46,7 @@
 #include "nrf_assert.h"
 #include "mesh_app_utils.h"
 
+#include "sensor_mc.h"
 #include "sensor_utils.h"
 #include "sensor_common.h"
 #include "app_sensor_utils.h"
@@ -368,6 +369,8 @@ static void sensor_cadence_set_cb(const sensor_setup_server_t * p_self,
     /* If *p_out_bytes > 0, sensor_cadence_set() provided a message suitable for a response. *pp_out
      * gives the message base; *p_out_bytes gives the size of the message in bytes.
      */
+
+    ERROR_CHECK(sensor_mc_cadence_set(p_self->state.handle, p_in->property_id, p_in, in_bytes));
 }
 
 
@@ -481,5 +484,37 @@ uint32_t app_sensor_init(app_sensor_server_t * p_server, uint16_t element_index)
     p_server->server.settings.p_callbacks = &m_sensor_srv_cbs;
     p_server->server.settings.property_array = p_server->p_sensor_property_array;
 
+    /* set the default state (initialize flash) */
+    uint32_t status = sensor_mc_open(&p_server->server.state.handle,
+                                     p_server->server.settings.property_array);
+    if (NRF_SUCCESS != status) {
+        return status;
+    }
+
     return sensor_setup_server_init(&p_server->server, element_index);
+}
+
+
+uint32_t app_sensor_cadence_restore(app_sensor_server_t * p_server)
+{
+    if (p_server == NULL)
+    {
+        return NRF_ERROR_NULL;
+    }
+
+    uint8_t status[SENSOR_CADENCE_STATUS_MAX];
+    uint16_t status_bytes;
+
+    for (uint8_t i = 0; i < (uint8_t) p_server->p_sensor_property_array[0]; i++)
+    {
+        uint16_t property_id = p_server->p_sensor_property_array[i + 1];
+        ERROR_CHECK(sensor_mc_cadence_get(p_server->server.state.handle, property_id,
+                                          (sensor_cadence_set_msg_pkt_t *)&status,
+                                          &status_bytes));
+        (void) sensor_cadence_set(p_server,
+                                  (sensor_cadence_set_msg_pkt_t *) &status, status_bytes,
+                                  (sensor_cadence_status_msg_pkt_t *) &status, &status_bytes);
+    }
+
+    return NRF_SUCCESS;
 }
