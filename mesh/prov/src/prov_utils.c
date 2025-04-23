@@ -136,12 +136,11 @@ static void create_confirmation_salt(const nrf_mesh_prov_ctx_t * p_ctx, uint8_t 
 
 static void oob_gen_count(uint8_t * p_auth_value, uint8_t oob_size)
 {
-    uint8_t count;
-    rand_hw_rng_get(&count, 1);
-    /* @tagMeshSp section 5.4.2.2: random integer number between 1
-     * and the [oob size] inclusive */
-    count = (count % oob_size) + 1;
-    p_auth_value[PROV_AUTH_LEN - 1] = count;
+    uint32_t count;
+    rand_hw_rng_get((uint8_t *) &count, sizeof(count));
+    /* Big endian at end of auth value: */
+    count = LE2BE32((count % (m_numeric_max[oob_size] - 1)) + 1);
+    memcpy(&p_auth_value[PROV_AUTH_LEN - sizeof(count)], &count, sizeof(count));
 }
 
 static void oob_gen_numeric(uint8_t * p_auth_value, uint8_t digits)
