@@ -205,7 +205,7 @@ __WEAK void generic_dtt_mc_init(void)
 __WEAK void sensor_mc_init(void)
 {}
 
-__WEAK void vendor_mc_init(void)
+__WEAK void custom_mc_init(void)
 {}
 
 __WEAK void generic_level_mc_clear(void)
@@ -238,7 +238,7 @@ __WEAK void generic_dtt_mc_clear(void)
 __WEAK void sensor_mc_clear(void)
 {}
 
-__WEAK void vendor_mc_clear(void)
+__WEAK void custom_mc_clear(void)
 {}
 
 static void model_config_clear(void)
@@ -253,7 +253,7 @@ static void model_config_clear(void)
     scene_mc_clear();
     generic_dtt_mc_clear();
     sensor_mc_clear();
-    vendor_mc_clear();
+    custom_mc_clear();
 }
 
 void model_config_file_init(void)
@@ -273,7 +273,7 @@ void model_config_file_init(void)
     scene_mc_init();
     generic_dtt_mc_init();
     sensor_mc_init();
-    vandor_mc_init();
+    custom_mc_init();
 }
 
 uint32_t model_config_file_config_apply(void)
