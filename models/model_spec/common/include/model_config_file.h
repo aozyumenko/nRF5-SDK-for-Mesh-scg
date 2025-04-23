@@ -91,6 +91,19 @@
 #define MESH_APP_MODEL_GENERIC_DTT_ID_START         (0x2600)
 /** End of Generic Default Transition Time Server record entry IDs */
 #define MESH_APP_MODEL_GENERIC_DTT_ID_END           (0x26FF)
+/** Start of Generic Power OnOff Setup Server record entry IDs */
+#define MESH_APP_MODEL_GENERIC_PONOFF_ID_START      (0x2700)
+/** End of Generic Power OnOff Setup Server record entry IDs */
+#define MESH_APP_MODEL_GENERIC_PONOFF_ID_END        (0x27FF)
+/** Start of Light HSL Setup Server record entry IDs */
+#define MESH_APP_MODEL_LIGHT_HSL_SERVER_ID_START    (0x2800)
+/** End of Light HSL Setup Server record entry IDs */
+#define MESH_APP_MODEL_LIGHT_HSL_SERVER_ID_END      (0x29FF)
+/** Start of Sensor Setup Server record entry IDs */
+#define MESH_APP_MODEL_SENSOR_SERVER_ID_START       (0x2A00)
+/** End of Sensor Setup Server record entry IDs */
+#define MESH_APP_MODEL_SENSOR_SERVER_ID_END         (0x2BFF)
+
 
 /**
  * Initialize persistent memory of all models used.

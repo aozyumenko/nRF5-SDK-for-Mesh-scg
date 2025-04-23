@@ -60,18 +60,21 @@
 #define SENSOR_NO_PROPERTY_ID (0)
 
 /**
- * Motion Sensed Property ID.
+ * Property identifiers
  *
  * See "@tagMeshDevPr, section 4.1.3".
  */
-#define SENSOR_MOTION_SENSED_PROPERTY_ID (0x0042)
+#define SENSOR_MOTION_SENSED_PROPERTY_ID                        (0x0042)
+#define SENSOR_PRESENCE_DETECT_PROPERTY_ID                      (0x004d)
+#define SENSOR_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID          (0x004f)
+#define SENSOR_PRESENT_DEVICE_INPUT_POWER_PROPERTY_ID           (0x0052)
+#define SENSOR_PRESENT_INPUT_CURRENT_PROPERTY_ID                (0x0057)
+#define SENSOR_PRESENT_INPUT_VOLTAGE_PROPERTY_ID                (0x0059)
+#define SENSOR_TOTAL_DEVICE_ENERGY_USE_PROPERTY_ID              (0x006a)
+#define SENSOR_DESIRED_AMBIENT_TEMPERATURE_PROPERTY_ID          (0x0071)
+#define SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_PROPERTY_ID      (0x0072)
+#define SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID  (0x0075)
 
-/**
- * Presence Detected Property ID.
- *
- * See "@tagMeshDevPr, section 4.1.3".
- */
-#define SENSOR_PRESENCE_DETECT_PROPERTY_ID (0x004D)
 
 /**
  * Sensor Descriptor size.

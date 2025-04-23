@@ -74,9 +74,50 @@ static uint16_t range_vector_bytes_get(uint16_t property_id)
 {
     switch (property_id) {
 
+#ifdef SENSOR_MOTION_SENSED_ENABLE
     case SENSOR_MOTION_SENSED_PROPERTY_ID:   /* Intentionally fall through. */
+        return sizeof(pir_data_size_t);
+#endif /* SENSOR_MOTION_SENSED_ENABLE */
+
+#ifdef SENSOR_PRESENCE_DETECT_ENABLE
     case SENSOR_PRESENCE_DETECT_PROPERTY_ID:
         return sizeof(pir_data_size_t);
+#endif /* SENSOR_PRESENCE_DETECT_ENABLE */
+
+#ifdef SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
+    case SENSOR_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID:
+        return sizeof(chr_temperature8_t);
+#endif /* SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
+
+#ifdef SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE
+    case SENSOR_PRESENT_DEVICE_INPUT_POWER_PROPERTY_ID:
+        return 3;   /* sizeof(uint24_t)  */
+#endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE */
+
+#ifdef SENSOR_PRESENT_INPUT_CURRENT_ENABLE
+    case SENSOR_PRESENT_INPUT_CURRENT_PROPERTY_ID:
+        return sizeof(chr_electric_current_t);
+#endif /* SENSOR_PRESENT_INPUT_CURRENT_ENABLE */
+
+#ifdef SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE
+    case SENSOR_PRESENT_INPUT_VOLTAGE_PROPERTY_ID:
+        return sizeof(chr_voltage_t);
+#endif /* SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE */
+
+#ifdef SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE
+    case SENSOR_DESIRED_AMBIENT_TEMPERATURE_PROPERTY_ID:
+        return sizeof(chr_temperature8_t);
+#endif /* SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE */
+
+#ifdef SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE
+    case SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_PROPERTY_ID:
+        return sizeof(chr_energy32_t);
+#endif /* SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE */
+
+#ifdef SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE
+    case SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID:
+        return sizeof(chr_temperature_t);
+#endif /* SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
 
     default:
         /* Property ID not supported */
@@ -86,16 +127,12 @@ static uint16_t range_vector_bytes_get(uint16_t property_id)
 
 static uint16_t delta_vector_bytes_get(uint16_t property_id, uint8_t trigger_type)
 {
-    switch (property_id) {
-
-    case SENSOR_MOTION_SENSED_PROPERTY_ID:   /* Intentionally fall through. */
-    case SENSOR_PRESENCE_DETECT_PROPERTY_ID:
-        return trigger_type ? sizeof(uint16_t) : sizeof(pir_data_size_t);
-
-    default:
+    uint16_t range_vector_bytes = range_vector_bytes_get(property_id);
+    if (range_vector_bytes == 0) {
         /* Property ID not supported */
         return 0;
     }
+    return trigger_type ? sizeof(uint16_t) : range_vector_bytes;
 }
 
 static inline uint16_t delta_vector_bytes_allocated_get(uint16_t property_id)
@@ -243,7 +280,8 @@ static uint32_t cadence_update(sensor_cadence_t * p, uint8_t * p_in, uint16_t by
     return NRF_SUCCESS;
 }
 
-static bool motion_sensor_in_fast_region(sensor_cadence_t * p)
+#if SENSOR_MOTION_SENSED_ENABLE
+static bool chr_uint8_in_fast_region(sensor_cadence_t * p)
 {
     NRF_MESH_ASSERT(p);
 
@@ -266,10 +304,10 @@ static bool motion_sensor_in_fast_region(sensor_cadence_t * p)
 }
 
 
-static bool motion_sensor_delta_value(uint16_t current,
-                                      uint16_t previous,
-                                      uint8_t  delta_up,
-                                      uint8_t  delta_down)
+static bool chr_uint8_delta_value(uint16_t current,
+                                  uint16_t previous,
+                                  uint8_t  delta_up,
+                                  uint8_t  delta_down)
 {
     /* "... the format shall be defined by the Format Type of the characteristic that the Sensor
      * Property ID state references (see Section 4.1.1.1)."
@@ -289,10 +327,10 @@ static bool motion_sensor_delta_value(uint16_t current,
                                 : ((previous - current) >= delta_down);
 }
 
-static bool motion_sensor_delta_percent(uint16_t current,
-                                        uint16_t previous,
-                                        uint16_t delta_up,
-                                        uint16_t delta_down)
+static bool chr_uint8_delta_percent(uint16_t current,
+                                    uint16_t previous,
+                                    uint16_t delta_up,
+                                    uint16_t delta_down)
 {
     if (!previous)
     {
@@ -322,7 +360,7 @@ static bool motion_sensor_delta_percent(uint16_t current,
     return diff_percentage >= trigger;
 }
 
-static bool motion_sensor_delta_trigger_fast(sensor_cadence_t * p)
+static bool chr_uint8_delta_trigger_fast(sensor_cadence_t * p)
 {
     NRF_MESH_ASSERT(p);
 
@@ -340,22 +378,336 @@ static bool motion_sensor_delta_trigger_fast(sensor_cadence_t * p)
          * " ... the unit is "unitless", the format type is 0x06 (uint16), and the value is
          * represented as a percentage change with a resolution of 0.01 percent.
          */
-        return motion_sensor_delta_percent((uint16_t)*p->p_current_value,
-                                           (uint16_t)*p->p_previous_value,
-                                           *(uint16_t *)p->p_trigger_delta_up,
-                                           *(uint16_t *)p->p_trigger_delta_down);
+        return chr_uint8_delta_percent((uint16_t)*p->p_current_value,
+                                       (uint16_t)*p->p_previous_value,
+                                       *(uint16_t *)p->p_trigger_delta_up,
+                                       *(uint16_t *)p->p_trigger_delta_down);
     }
     else
     {
         /* "... the format shall be defined by the Format Type of the characteristic that the Sensor
          * Property ID state references (see Section 4.1.1.1)."
          */
-        return motion_sensor_delta_value((uint16_t)*p->p_current_value,
-                                         (uint16_t)*p->p_previous_value,
-                                         *p->p_trigger_delta_up,
-                                         *p->p_trigger_delta_down);
+        return chr_uint8_delta_value((uint16_t)*p->p_current_value,
+                                     (uint16_t)*p->p_previous_value,
+                                     *p->p_trigger_delta_up,
+                                     *p->p_trigger_delta_down);
     }
 }
+#endif /* SENSOR_MOTION_SENSED_ENABLE */
+
+
+#if SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE || SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
+static bool chr_int8_in_fast_region(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    /* uint16 value */
+    int8_t value = *(int8_t *)p->p_current_value;
+    int8_t fast_cadence_low = *(int8_t *)p->p_fast_cadence_low;
+    int8_t fast_cadence_high = *(int8_t *)p->p_fast_cadence_high;
+
+    /* @tagMeshMdlSp Section 4.1.3 */
+    return  (fast_cadence_high >= fast_cadence_low)
+        ? (value >= fast_cadence_low) && (value <= fast_cadence_high)
+        : (value > fast_cadence_low) || (value < fast_cadence_high);
+}
+
+
+static bool chr_int8_delta_value(int16_t current,
+                                 int16_t previous,
+                                 int8_t delta_up,
+                                 int8_t delta_down)
+{
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+        current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
+
+    return (current > previous) ? ((current - previous) >= delta_up)
+                                : ((previous - current) >= delta_down);
+}
+
+static bool chr_int8_delta_percent(int16_t current,
+                                   int16_t previous,
+                                   uint16_t delta_up,
+                                   uint16_t delta_down)
+{
+    if (!previous) {
+        return true;
+    }
+
+    uint16_t trigger;
+    uint16_t difference;
+
+    if (previous > current) {
+        trigger = delta_down;
+        difference = previous - current;
+    } else {
+        trigger = delta_up;
+        difference = current - previous;
+    }
+
+    int16_t diff_percentage = 100 * ((100 * difference) / previous);
+
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
+        current, previous, delta_up, delta_down, diff_percentage);
+
+    return diff_percentage >= trigger;
+}
+
+static bool chr_int8_delta_trigger_fast(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    if (p->trigger_type) {
+        return chr_int8_delta_percent(*(int8_t *)p->p_current_value,
+                                      *(int8_t *)p->p_previous_value,
+                                      *(uint16_t *)p->p_trigger_delta_up,
+                                      *(uint16_t *)p->p_trigger_delta_down);
+    } else {
+        return chr_int8_delta_value(*(int8_t *)p->p_current_value,
+                                    *(int8_t *)p->p_previous_value,
+                                    *(int8_t *)p->p_trigger_delta_up,
+                                    *(int8_t *)p->p_trigger_delta_down);
+    }
+}
+#endif /* SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE || SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
+
+
+#if SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE || SENSOR_PRESENT_INPUT_CURRENT_ENABLE
+static bool chr_uint16_in_fast_region(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    /* uint16 value */
+    uint16_t value = *(uint16_t *)p->p_current_value;
+    uint16_t fast_cadence_low = *(uint16_t *)p->p_fast_cadence_low;
+    uint16_t fast_cadence_high = *(uint16_t *)p->p_fast_cadence_high;
+
+    /* @tagMeshMdlSp Section 4.1.3 */
+    return  (fast_cadence_high >= fast_cadence_low)
+        ? (value >= fast_cadence_low) && (value <= fast_cadence_high)
+        : (value > fast_cadence_low) || (value < fast_cadence_high);
+}
+
+
+static bool chr_uint16_delta_value(uint16_t current,
+                                   uint16_t previous,
+                                   uint16_t delta_up,
+                                   uint16_t delta_down)
+{
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+        current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
+
+    return (current > previous) ? ((current - previous) >= delta_up)
+                                : ((previous - current) >= delta_down);
+}
+
+static bool chr_uint16_delta_percent(uint16_t current,
+                                     uint16_t previous,
+                                     uint16_t delta_up,
+                                     uint16_t delta_down)
+{
+    if (!previous) {
+        return true;
+    }
+
+    uint16_t trigger;
+    uint16_t difference;
+
+    if (previous > current) {
+        trigger = delta_down;
+        difference = previous - current;
+    } else {
+        trigger = delta_up;
+        difference = current - previous;
+    }
+
+    uint16_t diff_percentage = 100 * ((100 * difference) / previous);
+
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
+        current, previous, delta_up, delta_down, diff_percentage);
+
+    return diff_percentage >= trigger;
+}
+
+static bool chr_uint16_delta_trigger_fast(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    if (p->trigger_type) {
+        return chr_uint16_delta_percent(*(uint16_t *)p->p_current_value,
+                                        *(uint16_t *)p->p_previous_value,
+                                        *(uint16_t *)p->p_trigger_delta_up,
+                                        *(uint16_t *)p->p_trigger_delta_down);
+    } else {
+        return chr_uint16_delta_value(*(uint16_t *)p->p_current_value,
+                                      *(uint16_t *)p->p_previous_value,
+                                      *(uint16_t *)p->p_trigger_delta_up,
+                                      *(uint16_t *)p->p_trigger_delta_down);
+    }
+}
+#endif /* SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE || SENSOR_PRESENT_INPUT_CURRENT_ENABLE */
+
+
+#if SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE
+static bool chr_int16_in_fast_region(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    /* uint16 value */
+    uint16_t value = *(int16_t *)p->p_current_value;
+    uint16_t fast_cadence_low = *(int16_t *)p->p_fast_cadence_low;
+    uint16_t fast_cadence_high = *(int16_t *)p->p_fast_cadence_high;
+
+    /* @tagMeshMdlSp Section 4.1.3 */
+    return  (fast_cadence_high >= fast_cadence_low)
+        ? (value >= fast_cadence_low) && (value <= fast_cadence_high)
+        : (value > fast_cadence_low) || (value < fast_cadence_high);
+}
+
+
+static bool chr_int16_delta_value(int16_t current,
+                                  int16_t previous,
+                                  int16_t delta_up,
+                                  int16_t delta_down)
+{
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+        current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
+
+    return (current > previous) ? ((current - previous) >= delta_up)
+                                : ((previous - current) >= delta_down);
+}
+
+static bool chr_int16_delta_percent(int16_t current,
+                                    int16_t previous,
+                                    uint16_t delta_up,
+                                    uint16_t delta_down)
+{
+    if (!previous) {
+        return true;
+    }
+
+    uint16_t trigger;
+    uint16_t difference;
+
+    if (previous > current) {
+        trigger = delta_down;
+        difference = previous - current;
+    } else {
+        trigger = delta_up;
+        difference = current - previous;
+    }
+
+    uint16_t diff_percentage = 100 * ((100 * difference) / previous);
+
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
+        current, previous, delta_up, delta_down, diff_percentage);
+
+    return diff_percentage >= trigger;
+}
+
+static bool chr_int16_delta_trigger_fast(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    if (p->trigger_type) {
+        return chr_int16_delta_percent(*(int16_t *)p->p_current_value,
+                                       *(int16_t *)p->p_previous_value,
+                                       *(uint16_t *)p->p_trigger_delta_up,
+                                       *(uint16_t *)p->p_trigger_delta_down);
+    } else {
+        return chr_int16_delta_value(*(int16_t *)p->p_current_value,
+                                     *(int16_t *)p->p_previous_value,
+                                     *(uint16_t *)p->p_trigger_delta_up,
+                                     *(uint16_t *)p->p_trigger_delta_down);
+    }
+}
+#endif /* SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
+
+
+#if SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE || SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE
+static bool chr_uint32_in_fast_region(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    /* uint32 value */
+    uint32_t value = *(uint32_t *)p->p_current_value;
+    uint32_t fast_cadence_low = *(uint32_t *)p->p_fast_cadence_low;
+    uint32_t fast_cadence_high = *(uint32_t *)p->p_fast_cadence_high;
+
+    /* @tagMeshMdlSp Section 4.1.3 */
+    return  (fast_cadence_high >= fast_cadence_low)
+        ? (value >= fast_cadence_low) && (value <= fast_cadence_high)
+        : (value > fast_cadence_low) || (value < fast_cadence_high);
+}
+
+
+static bool chr_uint32_delta_value(uint32_t current,
+                                   uint32_t previous,
+                                   uint32_t delta_up,
+                                   uint32_t delta_down)
+{
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+        current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
+
+    return (current > previous) ? ((current - previous) >= delta_up)
+                                : ((previous - current) >= delta_down);
+}
+
+static bool chr_uint32_delta_percent(uint32_t current,
+                                     uint32_t previous,
+                                     uint16_t delta_up,
+                                     uint16_t delta_down)
+{
+    if (!previous) {
+        return true;
+    }
+
+    uint16_t trigger;
+    uint32_t difference;
+
+    if (previous > current) {
+        trigger = delta_down;
+        difference = previous - current;
+    } else {
+        trigger = delta_up;
+        difference = current - previous;
+    }
+
+    uint16_t diff_percentage = 100 * ((100 * difference) / previous);
+
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
+        current, previous, delta_up, delta_down, diff_percentage);
+
+    return diff_percentage >= trigger;
+}
+
+static bool chr_uint32_delta_trigger_fast(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    if (p->trigger_type) {
+        return chr_uint32_delta_percent(*(uint32_t *)p->p_current_value,
+                                        *(uint32_t *)p->p_previous_value,
+                                        *(uint16_t *)p->p_trigger_delta_up,
+                                        *(uint16_t *)p->p_trigger_delta_down);
+    } else {
+        return chr_uint32_delta_value(*(uint32_t *)p->p_current_value,
+                                      *(uint32_t *)p->p_previous_value,
+                                      *(uint32_t *)p->p_trigger_delta_up,
+                                      *(uint32_t *)p->p_trigger_delta_down);
+    }
+}
+#endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE || SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE */
+
 
 static uint16_t mpid_a_value_marshall(sensor_cadence_t * p, uint8_t * buffer, uint16_t buffer_bytes)
 {
@@ -793,6 +1145,35 @@ static void cadence_status_get(sensor_cadence_t * p,
     }
 }
 
+static inline sensor_cadence_t * cadence_create(app_sensor_server_t * p_server, uint8_t property_index)
+{
+    uint16_t property_id = p_server->p_sensor_property_array[property_index + 1];
+    sensor_cadence_t * p;               /* The cadence instance */
+
+    p = cadence_new(property_id);
+    p->fast_period_exponent  = 0;
+    p->trigger_type          = 0;
+    p->min_interval_exponent = 10;      /* 2^10ms = 512ms */
+
+    p->p_server = p_server;
+    p->timer.p_timer_id = &p_server->p_cadence_timer_ids[property_index];
+    p->timer.p_context = p;
+    p->timer.cb = cadence_timer_cb;
+    (void) model_timer_create(&p->timer);
+
+    p->min_interval_timer.p_timer_id = &p_server->p_min_interval_timer_ids[property_index];
+    p->min_interval_timer.p_context = p;
+    p->min_interval_timer.cb = min_interval_timer_cb;
+    (void) model_timer_create(&p->min_interval_timer);
+
+    p_server->state.marshalled_list_bytes += p->marshalled_bytes;
+
+    list_add(&p_server->state.p_cadence_list, &p->list_node);
+
+    return p;
+}
+
+
 /* Entry-point definitions.
  */
 
@@ -1000,34 +1381,85 @@ void sensor_initialize(app_sensor_server_t *p_server)
 
         switch ((property_id = p_server->p_sensor_property_array[i + 1]))
         {
+#ifdef SENSOR_MOTION_SENSED_ENABLE
             case SENSOR_MOTION_SENSED_PROPERTY_ID:
             {
-                p = cadence_new(property_id);
-
-                /* Should a .h file specify the initial values? */
-                p->fast_period_exponent  = 0;
-                p->trigger_type          = 0;
-                p->min_interval_exponent = 10;  /*2^10ms = 512ms */
-
-                p->p_server = p_server;
-                p->timer.p_timer_id = &p_server->p_cadence_timer_ids[i];
-                p->timer.p_context = p;
-                p->timer.cb = cadence_timer_cb;
-                (void) model_timer_create(&p->timer);
-
-                p->min_interval_timer.p_timer_id = &p_server->p_min_interval_timer_ids[i];
-                p->min_interval_timer.p_context = p;
-                p->min_interval_timer.cb = min_interval_timer_cb;
-                (void) model_timer_create(&p->min_interval_timer);
-
-                p->in_fast_region     = motion_sensor_in_fast_region;
-                p->delta_trigger_fast = motion_sensor_delta_trigger_fast;
-
-                p_server->state.marshalled_list_bytes += p->marshalled_bytes;
-
-                list_add(&p_server->state.p_cadence_list, &p->list_node);
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint8_in_fast_region;
+                p->delta_trigger_fast = chr_uint8_delta_trigger_fast;
                 break;
             }
+#endif /* SENSOR_MOTION_SENSED_ENABLE */
+
+#ifdef SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
+        case SENSOR_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID:
+        {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_int8_in_fast_region;
+                p->delta_trigger_fast = chr_int8_delta_trigger_fast;
+                break;
+        }
+#endif /* SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
+
+#if SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE
+        case SENSOR_PRESENT_DEVICE_INPUT_POWER_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint32_in_fast_region;
+                p->delta_trigger_fast = chr_uint32_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE */
+
+#if SENSOR_PRESENT_INPUT_CURRENT_ENABLE
+        case SENSOR_PRESENT_INPUT_CURRENT_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint16_in_fast_region;
+                p->delta_trigger_fast = chr_uint16_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESENT_INPUT_CURRENT_ENABLE */
+
+#ifdef SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE
+            case SENSOR_PRESENT_INPUT_VOLTAGE_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint16_in_fast_region;
+                p->delta_trigger_fast = chr_uint16_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE */
+
+#ifdef SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE
+        case SENSOR_DESIRED_AMBIENT_TEMPERATURE_PROPERTY_ID:
+        {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_int8_in_fast_region;
+                p->delta_trigger_fast = chr_int8_delta_trigger_fast;
+                break;
+        }
+#endif /* SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE */
+
+#ifdef SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE
+            case SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint32_in_fast_region;
+                p->delta_trigger_fast = chr_uint32_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE */
+
+#if SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE
+            case SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_int16_in_fast_region;
+                p->delta_trigger_fast = chr_int16_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
 
             default :
             {

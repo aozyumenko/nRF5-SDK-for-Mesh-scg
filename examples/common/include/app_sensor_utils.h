@@ -44,6 +44,17 @@
 #include "app_sensor.h"
 #include "sensor_utils.h"
 
+
+/* Enable Property characteristics */
+
+typedef uint8_t chr_boolean_t;
+typedef uint16_t chr_electric_current_t;
+typedef uint32_t chr_energy32_t;
+typedef uint16_t chr_voltage_t;
+typedef uint32_t chr_power_t;
+typedef int8_t chr_temperature8_t;
+typedef int16_t chr_temperature_t;
+
 typedef struct __sensor_cadence_t sensor_cadence_t;
 
 typedef bool (*sensor_in_fast_region_t)(sensor_cadence_t *);
