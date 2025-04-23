@@ -1,4 +1,4 @@
-set(CMAKE_C_COMPILER arm-none-eabi-gcc)
+set(CMAKE_C_COMPILER /opt/gcc-arm-none-eabi-9-2020-q2-update/bin/arm-none-eabi-gcc)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 set(data_flags "-ffunction-sections -fdata-sections -fno-strict-aliasing -fno-builtin --short-enums")
@@ -46,13 +46,13 @@ function (create_hex executable)
     add_custom_command(
         TARGET ${executable}
         POST_BUILD
-        COMMAND arm-none-eabi-objcopy -O ihex ${CMAKE_CURRENT_BINARY_DIR}/${executable}.elf ${CMAKE_CURRENT_BINARY_DIR}/${executable}.hex
+        COMMAND /opt/gcc-arm-none-eabi-9-2020-q2-update/bin/arm-none-eabi-objcopy -O ihex ${CMAKE_CURRENT_BINARY_DIR}/${executable}.elf ${CMAKE_CURRENT_BINARY_DIR}/${executable}.hex
         BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/${executable}.hex)
 
     add_custom_command(
         TARGET ${executable}
         POST_BUILD
-        COMMAND arm-none-eabi-size ${CMAKE_CURRENT_BINARY_DIR}/${executable}.elf)
+        COMMAND /opt/gcc-arm-none-eabi-9-2020-q2-update/bin/arm-none-eabi-size ${CMAKE_CURRENT_BINARY_DIR}/${executable}.elf)
 endfunction(create_hex)
 
 

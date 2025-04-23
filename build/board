@@ -1,0 +1,12 @@
+#BOARD=light_rgbw_1
+#BOARD=light_rgbwc_1
+#BOARD=sw_ws_euy_1
+#BOARD=sw_ws_euy_2
+#BOARD=sw_ws_euy_3
+#BOARD=sock_wwk_dey
+#BOARD=sock_wk_y
+#BOARD=dds238_2
+#BOARD=thermostat_k5h
+#BOARD=th01
+#BOARD=screen_ctrl
+BOARD=thermostat_brt100
