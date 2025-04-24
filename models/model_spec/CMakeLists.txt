@@ -1,4 +1,5 @@
 add_subdirectory("common")
+add_subdirectory("generic_battery")
 add_subdirectory("generic_dtt")
 add_subdirectory("scene")
 add_subdirectory("generic_onoff")
