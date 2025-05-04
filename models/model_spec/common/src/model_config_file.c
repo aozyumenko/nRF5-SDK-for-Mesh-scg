@@ -61,6 +61,7 @@ typedef struct
     uint16_t    generic_ponoff_root_only_instance_count;
     uint16_t    generic_level_root_only_instance_count;
     uint16_t    generic_dtt_root_only_instance_count;
+    uint16_t    generic_battery_instance_count;
     uint16_t    scene_instance_count;
     uint16_t    sensor_instance_count;
 } model_config_file_metadata_t;
@@ -104,6 +105,7 @@ static void metadata_store(void)
         .generic_ponoff_root_only_instance_count = GENERIC_PONOFF_SERVER_INSTANCES_MAX,
         .generic_level_root_only_instance_count = GENERIC_LEVEL_SERVER_INSTANCES_MAX,
         .generic_dtt_root_only_instance_count = GENERIC_DTT_SERVER_INSTANCES_MAX,
+        .generic_battery_instance_count = GENERIC_BATTERY_SERVER_INSTANCES_MAX,
         .scene_instance_count = SCENE_SETUP_SERVER_INSTANCES_MAX,
         .sensor_instance_count = SENSOR_SETUP_SERVER_INSTANCES_MAX
     };
@@ -143,6 +145,7 @@ static uint32_t model_config_file_metadata_setter(mesh_config_entry_id_t id, con
         (p_metadata->generic_ponoff_root_only_instance_count == GENERIC_PONOFF_SERVER_INSTANCES_MAX) &&
         (p_metadata->generic_level_root_only_instance_count == GENERIC_LEVEL_SERVER_INSTANCES_MAX) &&
         (p_metadata->generic_dtt_root_only_instance_count == GENERIC_DTT_SERVER_INSTANCES_MAX) &&
+        (p_metadata->generic_battery_instance_count == GENERIC_BATTERY_SERVER_INSTANCES_MAX) &&
         (p_metadata->scene_instance_count == SCENE_SETUP_SERVER_INSTANCES_MAX) &&
         (p_metadata->sensor_instance_count == SENSOR_SETUP_SERVER_INSTANCES_MAX))
     {
@@ -169,6 +172,7 @@ static void model_config_file_metadata_getter(mesh_config_entry_id_t id, void * 
     p_metadata->generic_ponoff_root_only_instance_count = GENERIC_PONOFF_SERVER_INSTANCES_MAX;
     p_metadata->generic_level_root_only_instance_count = GENERIC_LEVEL_SERVER_INSTANCES_MAX;
     p_metadata->generic_dtt_root_only_instance_count = GENERIC_DTT_SERVER_INSTANCES_MAX;
+    p_metadata->generic_battery_instance_count = GENERIC_BATTERY_SERVER_INSTANCES_MAX;
     p_metadata->scene_instance_count = SCENE_SETUP_SERVER_INSTANCES_MAX;
     p_metadata->sensor_instance_count = SENSOR_SETUP_SERVER_INSTANCES_MAX;
 }

@@ -9,8 +9,8 @@
 #define GENERIC_BATTERY_LEVEL_MAX               (100)
 #define GENERIC_BATTERY_LEVEL_UNKNOWN           (0xff)
 
-#define GENERIC_BATTERY_TIME_MAX                (0xffff)
-#define GENERIC_BATTERY_TIME_UNKNOWN            (0xffff)
+#define GENERIC_BATTERY_TIME_MAX                (0xffffff)
+#define GENERIC_BATTERY_TIME_UNKNOWN            (0xffffff)
 
 #define GENERIC_BATTERY_FLAGS_PRESENCE_MAX      (3)
 #define GENERIC_BATTERY_FLAGS_INDICATOR_MAX     (3)
