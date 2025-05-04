@@ -83,6 +83,13 @@
 #endif
 
 /**
+ * The number of the Generic Battery Server instances used by the application.
+ */
+#ifndef GENERIC_BATTERY_SERVER_INSTANCES_MAX
+#define GENERIC_BATTERY_SERVER_INSTANCES_MAX  (0)
+#endif
+
+/**
  * The number of the Light Lightness Setup Server instances used by the application.
  */
 #ifndef LIGHT_LIGHTNESS_SETUP_SERVER_INSTANCES_MAX
