@@ -1,3 +1,7 @@
+# nRF5 SDK for Mesh SCG edition
+
+## Difference from the official repository
+
 # Welcome to nRF5 SDK for Mesh
 
 The nRF5 SDK for Mesh is Nordic Semiconductor's implementation of the Bluetooth mesh. It allows
