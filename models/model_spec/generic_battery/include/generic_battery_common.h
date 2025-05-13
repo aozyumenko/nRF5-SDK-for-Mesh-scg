@@ -72,7 +72,7 @@ inline void generic_battery_time_pack(uint8_t *dest, uint32_t src)
 {
     dest[0] = (src >> 16) & 0xff;
     dest[1] = (src >> 8) & 0xff;
-    dest[1] = (src) & 0xff;
+    dest[2] = (src) & 0xff;
 }
 
 
