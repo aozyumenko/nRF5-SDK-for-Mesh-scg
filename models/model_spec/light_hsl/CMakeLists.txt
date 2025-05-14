@@ -1,0 +1,8 @@
+set(LIGHT_HSL_SETUP_SERVER_SOURCE_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/light_hsl_setup_server.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/light_hsl_mc.c"
+    CACHE INTERNAL "")
+
+set(LIGHT_HSL_SETUP_SERVER_INCLUDE_DIRS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    CACHE INTERNAL "")
