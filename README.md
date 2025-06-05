@@ -1,6 +1,7 @@
 # nRF5 SDK for Mesh SCG edition
 
 ## Difference from the official repository
+  - The firmware of the BLE Mesh Network Controller device has been implemented to operate under BlueZ bluetooth-meshd control.
 
 # Welcome to nRF5 SDK for Mesh
 
