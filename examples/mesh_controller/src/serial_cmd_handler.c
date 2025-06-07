@@ -10,6 +10,7 @@
 #include "serial_packet.h"
 #include "serial_types.h"
 #include "nrf_mesh.h"
+#include "nrf_mesh_configure.h"
 #include "nrf_mesh_dfu.h"
 #include "hal.h"
 #include "ad_data_proxy.h"
@@ -121,6 +122,15 @@ static void handle_cmd_ad_data_send(const serial_packet_t *p_cmd)
 }
 
 
+static void handle_cmd_uuid_get(const serial_packet_t *p_cmd)
+{
+    serial_evt_cmd_rsp_data_device_uuid_t rsp;
+    memcpy(rsp.device_uuid, nrf_mesh_configure_device_uuid_get(), NRF_MESH_UUID_SIZE);
+    serial_cmd_rsp_send(p_cmd->opcode, p_cmd->payload.cmd.token,
+                        SERIAL_STATUS_SUCCESS, (uint8_t *)&rsp, sizeof(rsp));
+}
+
+
 static void handle_cmd_hk_data_get(const serial_packet_t *p_cmd)
 {
     serial_evt_cmd_rsp_data_housekeeping_t rsp;
@@ -155,6 +165,7 @@ static const serial_handler_common_opcode_to_fp_map_t m_cmd_handlers[] =
     {SERIAL_OPCODE_CMD_START,                   0,                              0,                              handle_cmd_start},
     {SERIAL_OPCODE_CMD_STOP,                    0,                              0,                              handle_cmd_stop},
     {SERIAL_OPCODE_CMD_AD_DATA_SEND,            BLE_AD_DATA_HEADER_LENGTH,      BLE_AD_DATA_PAYLOAD_MAXLEN,     handle_cmd_ad_data_send},
+    {SERIAL_OPCODE_CMD_UUID_GET,                0,                              0,                              handle_cmd_uuid_get},
     {SERIAL_OPCODE_CMD_HOUSEKEEPING_DATA_GET,   0,                              0,                              handle_cmd_hk_data_get},
     {SERIAL_OPCODE_CMD_HOUSEKEEPING_DATA_CLEAR, 0,                              0,                              handle_cmd_hk_data_clear}
 };

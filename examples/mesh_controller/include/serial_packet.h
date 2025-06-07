@@ -56,6 +56,12 @@ typedef struct __attribute((packed))
     uint16_t serial_ver;
 } serial_evt_cmd_rsp_data_serial_version_t;
 
+/* command response data with device UUID */
+typedef struct __attribute((packed))
+{
+    uint8_t device_uuid[NRF_MESH_UUID_SIZE];
+} serial_evt_cmd_rsp_data_device_uuid_t;
+
 /* serial interface housekeeping data */
 typedef struct __attribute((packed))
 {
@@ -72,6 +78,7 @@ typedef struct __attribute((packed))
     union __attribute((packed))
     {
         serial_evt_cmd_rsp_data_serial_version_t serial_version;        /* serial protocol version */
+        serial_evt_cmd_rsp_data_device_uuid_t device_uuid;              /* device UUID */
         serial_evt_cmd_rsp_data_housekeeping_t hk_data;                 /* housekeeping data response */
     } data;
 } serial_evt_cmd_rsp_t;
@@ -116,6 +123,7 @@ typedef struct __attribute((packed))
 #define SERIAL_OPCODE_CMD_START                         (0x03)
 #define SERIAL_OPCODE_CMD_STOP                          (0x04)
 #define SERIAL_OPCODE_CMD_AD_DATA_SEND                  (0x05)  /* serial_cmd_ad_data_t */
+#define SERIAL_OPCODE_CMD_UUID_GET                      (0x06)
 #define SERIAL_OPCODE_CMD_HOUSEKEEPING_DATA_GET         (0x7e)
 #define SERIAL_OPCODE_CMD_HOUSEKEEPING_DATA_CLEAR       (0x7f)
 
