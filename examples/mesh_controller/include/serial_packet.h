@@ -66,6 +66,7 @@ typedef struct __attribute((packed))
 typedef struct __attribute((packed))
 {
     uint32_t alloc_fail_count;
+    uint32_t rx_fail_count;
 } serial_evt_cmd_rsp_data_housekeeping_t;
 
 

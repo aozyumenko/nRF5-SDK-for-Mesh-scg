@@ -60,6 +60,7 @@ void serial_handler_rx(const serial_packet_t* p_cmd);
  * effect.
  */
 void serial_handler_alloc_fail_report(void);
+void serial_handler_rx_fail_report(void);
 
 /** @} */
 

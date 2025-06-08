@@ -42,6 +42,7 @@ extern "C" {
 #define RTS_PIN_NUMBER          NRF_GPIO_PIN_MAP(0,5)
 #define HWFC                    true
 #define SERIAL_UART_BAUDRATE    UART_BAUDRATE_BAUDRATE_Baud1M
+//#define SERIAL_UART_BAUDRATE    UART_BAUDRATE_BAUDRATE_Baud460800
 
 #ifdef __cplusplus
 }

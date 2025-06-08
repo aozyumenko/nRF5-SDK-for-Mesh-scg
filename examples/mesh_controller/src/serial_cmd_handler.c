@@ -36,6 +36,7 @@ typedef struct
 static struct
 {
     uint32_t alloc_fail_count;
+    uint32_t rx_fail_count;
 } m_hk_data;
 
 
@@ -137,6 +138,7 @@ static void handle_cmd_hk_data_get(const serial_packet_t *p_cmd)
 
     memset(&rsp, 0, sizeof(rsp));
     rsp.alloc_fail_count = m_hk_data.alloc_fail_count;
+    rsp.rx_fail_count = m_hk_data.rx_fail_count;
 
     serial_cmd_rsp_send(p_cmd->opcode,
                         p_cmd->payload.cmd.token,
@@ -212,5 +214,13 @@ void serial_handler_alloc_fail_report(void)
     if (m_hk_data.alloc_fail_count < UINT32_MAX)
     {
         m_hk_data.alloc_fail_count++;
+    }
+}
+
+void serial_handler_rx_fail_report(void)
+{
+    if (m_hk_data.rx_fail_count < UINT32_MAX)
+    {
+        m_hk_data.rx_fail_count++;
     }
 }

@@ -37,6 +37,7 @@
 
 #include "serial_bearer.h"
 #include "serial_uart.h"
+#include "serial_cmd_handler.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -100,7 +101,7 @@ static void schedule_transmit(void)
     bearer_event_flag_set(m_event_flag);
 }
 
-static void send_cmd_response(uint8_t status, uint8_t opcode)
+static void send_cmd_response(uint8_t status, uint8_t opcode, uint32_t token)
 {
     serial_packet_t * p_rsp;
     if (NRF_SUCCESS == serial_bearer_packet_buffer_get(SERIAL_EVT_CMD_RSP_LEN_OVERHEAD, &p_rsp))
@@ -108,6 +109,7 @@ static void send_cmd_response(uint8_t status, uint8_t opcode)
         p_rsp->opcode = SERIAL_OPCODE_EVT_CMD_RSP;
         p_rsp->payload.evt.cmd_rsp.opcode = opcode;
         p_rsp->payload.evt.cmd_rsp.status = status;
+        p_rsp->payload.evt.cmd_rsp.token = token;
         serial_bearer_tx(p_rsp);
     }
 }
@@ -118,10 +120,15 @@ static void end_reception(uint16_t * p_rx_index)
     {
         /* Check if the number of bytes received matched the number of bytes expected. */
         serial_packet_t* packet_received = (serial_packet_t*)(mp_current_rx_packet->packet);
+
         if (*p_rx_index != packet_received->length + 1)
         {
             /*Send error with the opcode received: */
-            send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, ((serial_packet_t *)mp_current_rx_packet)->opcode);
+            uint32_t token =
+                (*p_rx_index < SERIAL_PACKET_LENGTH_OVERHEAD + SERIAL_PACKET_OVERHEAD + SERIAL_CMD_OVERHEAD) ?
+                    UINT32_MAX : ((serial_packet_t *)mp_current_rx_packet)->payload.cmd.token;
+            send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, ((serial_packet_t *)mp_current_rx_packet)->opcode, token);
+            serial_handler_rx_fail_report();
             packet_buffer_free(&m_rx_packet_buf, mp_current_rx_packet);
             mp_current_rx_packet = NULL;
         }
@@ -142,7 +149,8 @@ static bool rx_packet_reserve(uint16_t pac_len)
             || pac_len > sizeof(serial_packet_t))
     {
         m_ignore_rx_count = pac_len - 1; /* Ignore the rest of the bytes in the packet. */
-        send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, 0);
+        send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, 0, UINT32_MAX);
+        serial_handler_rx_fail_report();
         return false;
     }
     else if (NRF_SUCCESS != packet_buffer_reserve(&m_rx_packet_buf, &mp_current_rx_packet, pac_len))
@@ -334,8 +342,11 @@ static inline void char_rx_with_slip_encoding(uint16_t * p_rx_index, uint8_t byt
     else if (NULL != mp_current_rx_packet &&
              *p_rx_index == ((serial_packet_t*)(mp_current_rx_packet->packet))->length + 1)
     {
-
-        send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, ((serial_packet_t *)mp_current_rx_packet)->opcode);
+        uint32_t token = 
+            (*p_rx_index < SERIAL_PACKET_LENGTH_OVERHEAD + SERIAL_PACKET_OVERHEAD + SERIAL_CMD_OVERHEAD) ?
+                UINT32_MAX : ((serial_packet_t *)mp_current_rx_packet)->payload.cmd.token;
+        send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, ((serial_packet_t *)mp_current_rx_packet)->opcode, token);
+        serial_handler_rx_fail_report();
         /* We received something else when we were expecting an END byte. */
         packet_buffer_free(&m_rx_packet_buf, mp_current_rx_packet);
         mp_current_rx_packet = NULL;
@@ -361,18 +372,28 @@ static void char_rx(uint8_t c)
 {
     static uint16_t rx_index = 0;
 
+#ifdef SERIAL_SLIP_ENCODING
+    if (m_ignore_rx_count > 0)
+    {
+        if (SLIP_END == c)
+        {
+            m_ignore_rx_count = 0;
+        }
+    }
+    else
+    {
+        char_rx_with_slip_encoding(&rx_index, c);
+    }
+#else
     if (m_ignore_rx_count > 0)
     {
         m_ignore_rx_count--;
     }
     else
     {
-#ifdef SERIAL_SLIP_ENCODING
-        char_rx_with_slip_encoding(&rx_index, c);
-#else
         char_rx_simple(&rx_index, c);
-#endif
     }
+#endif
 }
 
 static void char_tx(void)
