@@ -28,6 +28,9 @@
 #define BLE_AD_DATA_HEADER_LENGTH       (2)
 #define BLE_AD_DATA_PAYLOAD_MAXLEN      (SERIAL_CMD_PAYLOAD_MAXLEN - BLE_AD_DATA_HEADER_LENGTH)
 
+#define DEVICEADDR_LEN                  (6)
+
+
 
 /** commands section */
 
@@ -59,8 +62,8 @@ typedef struct __attribute((packed))
 /* command response data with device UUID */
 typedef struct __attribute((packed))
 {
-    uint8_t device_uuid[NRF_MESH_UUID_SIZE];
-} serial_evt_cmd_rsp_data_device_uuid_t;
+    uint8_t addr[DEVICEADDR_LEN];
+} serial_evt_cmd_rsp_data_deviceaddr_t;
 
 /* serial interface housekeeping data */
 typedef struct __attribute((packed))
@@ -79,7 +82,7 @@ typedef struct __attribute((packed))
     union __attribute((packed))
     {
         serial_evt_cmd_rsp_data_serial_version_t serial_version;        /* serial protocol version */
-        serial_evt_cmd_rsp_data_device_uuid_t device_uuid;              /* device UUID */
+        serial_evt_cmd_rsp_data_deviceaddr_t device_addr;               /* device address */
         serial_evt_cmd_rsp_data_housekeeping_t hk_data;                 /* housekeeping data response */
     } data;
 } serial_evt_cmd_rsp_t;
@@ -124,7 +127,7 @@ typedef struct __attribute((packed))
 #define SERIAL_OPCODE_CMD_START                         (0x03)
 #define SERIAL_OPCODE_CMD_STOP                          (0x04)
 #define SERIAL_OPCODE_CMD_AD_DATA_SEND                  (0x05)  /* serial_cmd_ad_data_t */
-#define SERIAL_OPCODE_CMD_UUID_GET                      (0x06)
+#define SERIAL_OPCODE_CMD_DEVICEADDR_GET                (0x06)
 #define SERIAL_OPCODE_CMD_HOUSEKEEPING_DATA_GET         (0x7e)
 #define SERIAL_OPCODE_CMD_HOUSEKEEPING_DATA_CLEAR       (0x7f)
 
