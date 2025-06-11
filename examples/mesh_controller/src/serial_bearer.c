@@ -278,6 +278,7 @@ static bool slip_decode(uint8_t * p_c, bool * p_skip_byte, uint8_t * p_prev_char
     if (SLIP_END == *p_c)
     {
         end_of_reception = true;
+        *p_prev_char = *p_c;
     }
     else if (*p_prev_char != SLIP_ESC)
     {
@@ -286,9 +287,11 @@ static bool slip_decode(uint8_t * p_c, bool * p_skip_byte, uint8_t * p_prev_char
             *p_skip_byte = true;
         }
         end_of_reception = false;
+        *p_prev_char = *p_c;
     }
     else
     {
+        *p_prev_char = *p_c;
         switch (*p_c)
         {
             case SLIP_ESC_END:
@@ -304,7 +307,6 @@ static bool slip_decode(uint8_t * p_c, bool * p_skip_byte, uint8_t * p_prev_char
                 break;
         }
     }
-    *p_prev_char = *p_c;
     return end_of_reception;
 }
 

@@ -47,6 +47,15 @@
  */
 
 /**
+ * @defgroup MESH_CONFIG_LOG Log module configuration
+ * @{
+ */
+
+#define NRF_MESH_LOG_ENABLE 0
+
+/** @} end of MESH_CONFIG_LOG */
+
+/**
  * @defgroup DEVICE_CONFIG Device configuration
  *
  * @{
