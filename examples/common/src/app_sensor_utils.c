@@ -119,6 +119,21 @@ static uint16_t range_vector_bytes_get(uint16_t property_id)
         return sizeof(chr_temperature_t);
 #endif /* SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
 
+#ifdef SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_ENABLE
+    case SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_PROPERTY_ID:
+        return sizeof(chr_temperature_t);
+#endif /* SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_ENABLE */
+
+#ifdef SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_ENABLE
+    case SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_PROPERTY_ID:
+        return sizeof(chr_temperature_t);
+#endif /* SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_ENABLE */
+
+#ifdef SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_ENABLE
+    case SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_PROPERTY_ID:
+        return sizeof(chr_temperature_t);
+#endif /* SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_ENABLE */
+
     default:
         /* Property ID not supported */
         return 0;
@@ -475,7 +490,11 @@ static bool chr_int8_delta_trigger_fast(sensor_cadence_t * p)
 #endif /* SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE || SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
 
 
-#if SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE || SENSOR_PRESENT_INPUT_CURRENT_ENABLE
+#if SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE                 || \
+    SENSOR_PRESENT_INPUT_CURRENT_ENABLE                 || \
+    SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_ENABLE     || \
+    SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_ENABLE      || \
+    SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_ENABLE
 static bool chr_uint16_in_fast_region(sensor_cadence_t * p)
 {
     NRF_MESH_ASSERT(p);
@@ -550,7 +569,7 @@ static bool chr_uint16_delta_trigger_fast(sensor_cadence_t * p)
                                       *(uint16_t *)p->p_trigger_delta_down);
     }
 }
-#endif /* SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE || SENSOR_PRESENT_INPUT_CURRENT_ENABLE */
+#endif /* uint16 */
 
 
 #if SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE
@@ -1460,6 +1479,36 @@ void sensor_initialize(app_sensor_server_t *p_server)
                 break;
             }
 #endif /* SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
+
+#if SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_ENABLE
+            case SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint16_in_fast_region;
+                p->delta_trigger_fast = chr_uint16_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_ENABLE */
+
+#if SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_ENABLE
+            case SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint16_in_fast_region;
+                p->delta_trigger_fast = chr_uint16_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_ENABLE */
+
+#if SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_ENABLE
+            case SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint16_in_fast_region;
+                p->delta_trigger_fast = chr_uint16_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_ENABLE */
 
             default :
             {
