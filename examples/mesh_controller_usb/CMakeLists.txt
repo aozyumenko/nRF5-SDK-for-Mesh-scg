@@ -4,7 +4,6 @@ add_executable(${target}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/serial.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/serial_cmd_handler.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/serial_uart.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/serial_bearer.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ad_data_proxy.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ctrl_led.c"
@@ -24,6 +23,22 @@ add_executable(${target}
     ${${PLATFORM}_SOURCE_FILES}
     ${${nRF5_SDK_VERSION}_SOURCE_FILES}
     # SDK start
+    "${SDK_ROOT}/components/libraries/usbd/app_usbd.c"
+    "${SDK_ROOT}/components/libraries/usbd/class/cdc/acm/app_usbd_cdc_acm.c"
+    "${SDK_ROOT}/components/libraries/usbd/app_usbd_core.c"
+    "${SDK_ROOT}/components/libraries/usbd/app_usbd_serial_num.c"
+    "${SDK_ROOT}/components/libraries/usbd/app_usbd_string_desc.c"
+    "${SDK_ROOT}/components/libraries/atomic_fifo/nrf_atfifo.c"
+    "${SDK_ROOT}/components/libraries/atomic/nrf_atomic.c"
+    "${SDK_ROOT}/external/utf_converter/utf.c"
+    "${SDK_ROOT}/integration/nrfx/legacy/nrf_drv_clock.c"
+    "${SDK_ROOT}/integration/nrfx/legacy/nrf_drv_power.c"
+    "${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_clock.c"
+    "${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_power.c"
+    "${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_usbd.c"
+    "${SDK_ROOT}/modules/nrfx/soc/nrfx_atomic.c"
+    # SDK end
+    # SDK logs start
     "${SDK_ROOT}/components/libraries/log/src/nrf_log_backend_serial.c"
     "${SDK_ROOT}/components/libraries/log/src/nrf_log_backend_uart.c"
     "${SDK_ROOT}/components/libraries/log/src/nrf_log_default_backends.c"
@@ -40,7 +55,7 @@ add_executable(${target}
     "${SDK_ROOT}/components/libraries/strerror/nrf_strerror.c"
     "${SDK_ROOT}/modules/nrfx/drivers/src/prs/nrfx_prs.c"
     "${SDK_ROOT}/modules/nrfx/drivers/src/nrfx_gpiote.c"
-    # SDK end
+    # SDK logs end
 )
 
 target_include_directories(${target} PUBLIC
@@ -58,12 +73,23 @@ target_include_directories(${target} PUBLIC
     ${MESH_SERIAL_PROXY_INCLUDE_DIRS}
     ${${nRF5_SDK_VERSION}_INCLUDE_DIRS}
     # SDK start
+    "${SDK_ROOT}/components/libraries/usbd"
+    "${SDK_ROOT}/components/libraries/usbd/class/cdc"
+    "${SDK_ROOT}/components/libraries/usbd/class/cdc/acm"
+    "${SDK_ROOT}/components/libraries/atomic_fifo"
+    "${SDK_ROOT}/components/libraries/atomic"
+    "${SDK_ROOT}/integration/nrfx/legacy"
+    "${SDK_ROOT}/modules/nrfx/drivers/include"
+    "${SDK_ROOT}/modules/nrfx/soc"
+    # SDK end
+    # SDK logs start
+    "${SDK_ROOT}/components/libraries/usbd/class/cdc/acm"
     "${SDK_ROOT}/components/libraries/memobj"
     "${SDK_ROOT}/components/libraries/balloc"
     "${SDK_ROOT}/external/fprintf"
     "${SDK_ROOT}/components/libraries/ringbuf"
-    "${SDK_ROOT}/integration/nrfx/legacy"
-    #SDK end
+    "${SDK_ROOT}/external/utf_converter"
+    # SDK logs end
 )
 
 set_target_link_options(${target}

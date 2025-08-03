@@ -1,7 +1,8 @@
 /* Copyright (c) 2025, Alexander Ozumenko
  * All rights reserved.
- *
  */
+
+#include <stdint.h>
 
 #include "nrf_delay.h"
 #include "boards.h"
@@ -21,16 +22,14 @@
 /* logging */
 #include "nrf5_sdk_log.h"
 
+
+
 /*definitions */
-
-
-/*forward declaration of static functions */
 
 
 /* static variables */
 
 static bool m_device_provisioned;
-
 
 
 static void mesh_init(void)
@@ -54,11 +53,11 @@ static void mesh_init(void)
             ERROR_CHECK(status);
     }
 
-    NRF_LOG_INFO("Initializing serial interface...");
-    ERROR_CHECK(serial_init());
-
     NRF_LOG_INFO("Initializing BLE Advertizing Data proxy interface...");
     ERROR_CHECK(ad_data_proxy_init());
+
+    NRF_LOG_INFO("Statrting serial interface...");
+    ERROR_CHECK(serial_start());
 }
 
 
@@ -73,10 +72,12 @@ static void initialize(void)
 
     ERROR_CHECK(app_timer_init());
 
-    ctrl_led_init();
+    NRF_LOG_INFO("Initializing serial interface...");
+    ERROR_CHECK(serial_init());
+
+//    ctrl_led_init();
 
     ble_stack_init();
-
     mesh_init();
 
     NRF_LOG_INFO("Initialization complete!");
@@ -85,8 +86,6 @@ static void initialize(void)
 
 static void start(void)
 {
-    ERROR_CHECK(serial_start());
-
     mesh_app_uuid_print(nrf_mesh_configure_device_uuid_get());
 
     ERROR_CHECK(mesh_stack_start());
@@ -101,11 +100,19 @@ int main(void)
     initialize();
     start();
 
-    ctrl_led_set(LED_1, true);
+//    ctrl_led_set(LED_1, true);
+//    ctrl_led_blink(LED_1, 500);
+//    ctrl_led_blink(LED_2, 500);
+//    ctrl_led_blink(LED_3, 500);
+//    ctrl_led_blink(LED_4, 500);
+//    ctrl_led_blink(LED_5, 500);
+//    ctrl_led_blink(LED_6, 500);
+//    ctrl_led_blink(LED_7, 500);
+//    ctrl_led_blink(LED_8, 500);
 
     for (;;) {
-        if (NRF_LOG_PROCESS() == false) {
-            (void)sd_app_evt_wait();
-        }
+        while (app_usbd_event_queue_process()) {}
+        UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
+        (void)sd_app_evt_wait();
     }
 }

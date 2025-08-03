@@ -51,8 +51,19 @@
 
 /**
  * Initializes the serial interface.
+ * // TODO: add comment
+ * @retval     NRF_SUCCESS
+ * @retval     NRF_ERROR_INVALID_STATE
  */
-void serial_bearer_init(void);
+uint32_t serial_bearer_init(void);
+
+/**
+ * Start the serial interface.
+ * // TODO: add comment
+ * @retval     NRF_SUCCESS
+ * @retval     NRF_ERROR_INVALID_STATE
+ */
+uint32_t serial_bearer_start(void);
 
 /**
  * Allocates a serial packet from the serial_bearer buffer.
@@ -91,6 +102,25 @@ uint32_t serial_bearer_blocking_buffer_get(uint16_t packet_len, serial_packet_t 
  */
 void serial_bearer_tx(const serial_packet_t * p_packet);
 
+// TODO: add comment
+uint32_t serial_bearer_ad_data_send(uint8_t ad_type, const uint8_t *p_data, uint16_t length);
+
+/**
+ * Send a command response to the given opcode, with the given serial status.
+ *
+ * @param[in] opcode Opcode to reply to.
+ * @param[in] token Token of the command we are reply to.
+ * @param[in] status Reply status code.
+ * @param[in] p_data Additional data to be added to the reply (optional).
+ * @param[in] length Length of additional data.
+ */
+uint32_t serial_bearer_cmd_rsp_send(uint8_t opcode, uint32_t token, uint8_t status,
+                                    const uint8_t *p_data, uint16_t length);
+
+
+// TODO: add comment
+//uint32_t serial_bearer_evt_send(uint8_t opcode, const uint8_t *p_data, uint16_t length);
+
 /**
  * Get a packet from the RX queue.
  *
@@ -99,13 +129,6 @@ void serial_bearer_tx(const serial_packet_t * p_packet);
  * @return        true if a complete RX packet is available.
  */
 bool serial_bearer_rx_get(serial_packet_t * p_packet);
-
-/**
- * Check if any serial packets have been received from the peer.
- *
- * @return     Whether there are some unprocessed RX packets queued.
- */
-bool serial_bearer_rx_pending(void);
 
 /** @} */
 #endif /* end of SERIAL_BEARER_H__*/

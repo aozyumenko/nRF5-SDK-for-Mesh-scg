@@ -1,17 +1,18 @@
 /* Copyright (c) 2025, Alexander Ozumenko
  * All rights reserved.
- *
  */
 #include "ad_data_proxy.h"
-
 #include "nrf_mesh_config_core.h"
+
+#include <string.h>
 
 #include "proxy_config_packet.h"
 #include "proxy_filter.h"
-#include "core_tx.h"
 #include "serial.h"
 #include "serial_packet.h"
 #include "serial_types.h"
+#include "core_tx.h"
+#include "bearer_event.h"
 #include "net_beacon.h"
 #include "nordic_common.h"
 #include "nrf_mesh.h"
@@ -24,31 +25,73 @@
 #include "example_common.h"
 
 
+/* logging */
+#include "nrf5_sdk_log.h"
 
 
-/*****************************************************************************
-* Static globals
-*****************************************************************************/
+/*********** Definitions ***********/
+
+#define ENABLE_FAST_CACHE               1
+
+
+
+/*********** Static globals ***********/
+
 static bool m_initialized = false;
 static bool m_enabled = false;
 
-
-static struct
-{
+static struct {
     advertiser_t advertiser;
     uint8_t packet_buffer[CORE_TX_QUEUE_BUFFER_SIZE_ORIGINATOR];
 } m_advertising;
 
+static uint32_t m_proxy_stop_event_flag;
+
+#ifdef ENABLE_FAST_CACHE
+#define FAST_CACHE_SIZE 8
+static struct {
+    uint8_t length;
+    uint8_t hash[8];
+} m_fast_cache[FAST_CACHE_SIZE];
+static int m_fast_cache_idx = 0;
+#endif /* ENABLE_FAST_CACHE */
+
+// FIXME: drop
+extern int m_packet_in_count;
+extern int m_packet_in_repeats;
+//extern size_t m_data_len;
 
 
 
-/*****************************************************************************
-* Static functions
-*****************************************************************************/
+/*********** Static functions ***********/
+
+#ifdef ENABLE_FAST_CACHE
+static inline bool check_fast_cache(const uint8_t *p_data, uint32_t length)
+{
+    int i;
+    size_t hash_length;
+
+
+    hash_length = (length < sizeof(m_fast_cache[0].hash)) ?
+        length : sizeof(m_fast_cache[0].hash);
+
+    for (i = 0; i < ARRAY_SIZE(m_fast_cache); i++) {
+        if ((m_fast_cache[i].length == length) && (memcmp(m_fast_cache[i].hash, p_data, hash_length) == 0)) {
+            return false;
+        }
+    }
+
+    m_fast_cache[m_fast_cache_idx].length = length;
+    memcpy(m_fast_cache[m_fast_cache_idx].hash, p_data, hash_length);
+    m_fast_cache_idx = (m_fast_cache_idx + 1) % ARRAY_SIZE(m_fast_cache);
+
+    return true;
+}
+#endif /* ENABLE_FAST_CACHE */
 
 
 
-/////////////////////////////////////////////////
+
 static void packet_in(uint8_t ad_type, const uint8_t *p_data, uint32_t data_len)
 {
     serial_packet_t *p_packet;
@@ -57,16 +100,18 @@ static void packet_in(uint8_t ad_type, const uint8_t *p_data, uint32_t data_len)
     if (!m_initialized || !m_enabled)
         return;
 
-    status = serial_packet_buffer_get(SERIAL_PACKET_OVERHEAD + BLE_AD_DATA_HEADER_LENGTH + data_len, &p_packet);
-    if (status == NRF_SUCCESS) {
-        p_packet->opcode = SERIAL_OPCODE_EVT_AD_DATA_RECEIVED;
-        p_packet->payload.evt.ad_data.data[0] = data_len + BLE_AD_DATA_OVERHEAD;
-        p_packet->payload.evt.ad_data.data[1] = ad_type;
-        memcpy(p_packet->payload.evt.ad_data.data + 2, p_data, data_len);
-        serial_tx(p_packet);
-    }
+m_packet_in_count++;
 
-    ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
+#ifdef ENABLE_FAST_CACHE
+    if (ad_type == AD_TYPE_MESH) {
+        if (!check_fast_cache(p_data, data_len)) {
+m_packet_in_repeats++;
+            return;
+        }
+    }
+#endif /* ENABLE_FAST_CACHE */
+
+    UNUSED_VARIABLE(serial_ad_data_send(ad_type, p_data, data_len));
 }
 
 
@@ -104,8 +149,6 @@ AD_LISTENER(m_beacon_ad_listener) = {
 };
 
 
-
-/* ...  */
 static void advertiser_tx_complete_cb(advertiser_t *p_adv,
                                       nrf_mesh_tx_token_t token,
                                       timestamp_t timestamp)
@@ -115,20 +158,34 @@ static void advertiser_tx_complete_cb(advertiser_t *p_adv,
 }
 
 
+static bool proxy_stop_event_handler(void)
+{
+    advertiser_disable(&m_advertising.advertiser);
+    m_enabled = false;
+    return true;
+}
+
+
 
 /* interface functions */
 
 uint32_t ad_data_proxy_init(void)
 {
-    if (m_initialized)
-    {
+    if (m_initialized) {
         return NRF_ERROR_INVALID_STATE;
     }
+
+#ifdef ENABLE_FAST_CACHE
+    memset(m_fast_cache, 0, sizeof(m_fast_cache));
+    m_fast_cache_idx = 0;
+#endif /* ENABLE_FAST_CACHE */
 
     advertiser_instance_init(&m_advertising.advertiser,
                              advertiser_tx_complete_cb,
                              m_advertising.packet_buffer,
                              sizeof(m_advertising.packet_buffer));
+
+    m_proxy_stop_event_flag = bearer_event_flag_add(proxy_stop_event_handler);
     m_initialized = true;
 
     return NRF_SUCCESS;
@@ -137,37 +194,30 @@ uint32_t ad_data_proxy_init(void)
 
 uint32_t proxy_start(void)
 {
-    if (m_initialized && !m_enabled)
-    {
-        m_enabled = true;
-        advertiser_enable(&m_advertising.advertiser);
-
-        ctrl_led_set(LED_1, false);
-
-        return NRF_SUCCESS;
-    }
-    else
-    {
+    if (!m_initialized || m_enabled) {
         return NRF_ERROR_INVALID_STATE;
     }
+
+    m_enabled = true;
+    advertiser_enable(&m_advertising.advertiser);
+
+//    ctrl_led_set(LED_1, false);
+
+    return NRF_SUCCESS;
 }
 
 
 uint32_t proxy_stop(void)
 {
-    if (m_initialized && m_enabled)
-    {
-        advertiser_disable(&m_advertising.advertiser);
-        m_enabled = false;
-
-        ctrl_led_set(LED_1, true);
-
-        return NRF_SUCCESS;
-    }
-    else
-    {
+    if (!m_initialized || !m_enabled) {
         return NRF_ERROR_INVALID_STATE;
     }
+
+    bearer_event_flag_set(m_proxy_stop_event_flag);
+
+//        ctrl_led_set(LED_1, true);
+
+    return NRF_SUCCESS;
 }
 
 
@@ -178,8 +228,7 @@ void ad_data_proxy_tx(nrf_mesh_tx_token_t token, const uint8_t *data, int length
     if (!m_initialized || !m_enabled) {
         serial_cmd_rsp_send(SERIAL_OPCODE_CMD_AD_DATA_SEND, token,
                             SERIAL_STATUS_ERROR_INVALID_STATE, NULL, 0);
-        return;
-    }
+    } else {
 
     p_adv_packet = advertiser_packet_alloc(&m_advertising.advertiser, length);
     if (p_adv_packet != NULL) {
@@ -189,5 +238,7 @@ void ad_data_proxy_tx(nrf_mesh_tx_token_t token, const uint8_t *data, int length
         advertiser_packet_send(&m_advertising.advertiser, p_adv_packet);
     }
 
-    ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
+//    ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
+
+    }
 }

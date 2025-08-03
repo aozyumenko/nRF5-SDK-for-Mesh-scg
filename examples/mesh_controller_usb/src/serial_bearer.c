@@ -1,42 +1,8 @@
-/* Copyright (c) 2010 - 2020, Nordic Semiconductor ASA
+/* Copyright (c) 2025, Alexander Ozumenko
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form, except as embedded into a Nordic
- *    Semiconductor ASA integrated circuit in a product or a software update for
- *    such product, must reproduce the above copyright notice, this list of
- *    conditions and the following disclaimer in the documentation and/or other
- *    materials provided with the distribution.
- *
- * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * 4. This software, with or without modification, must only be used with a
- *    Nordic Semiconductor ASA integrated circuit.
- *
- * 5. Any software provided in binary form under this license must not be reverse
- *    engineered, decompiled, modified and/or disassembled.
- *
- * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "serial_bearer.h"
-#include "serial_uart.h"
 #include "serial_cmd_handler.h"
 
 #include <stdint.h>
@@ -47,17 +13,48 @@
 
 #include "nrf_mesh_assert.h"
 #include "serial.h"
+#include "ad_data_proxy.h"
 #include "serial_packet.h"
 #include "serial_types.h"
 #include "packet_buffer.h"
 #include "bearer_event.h"
 #include "toolchain.h"
 
+#include "nrf_drv_usbd.h"
+#include "app_usbd_core.h"
+#include "app_usbd.h"
+#include "app_usbd_string_desc.h"
+#include "app_usbd_cdc_acm.h"
+#include "app_usbd_serial_num.h"
+
+/* logging */
+#include "nrf5_sdk_log.h"
+
+
+
+/*********** Definitions ***********/
+
+#define CDC_ACM_COMM_INTERFACE          0
+#define CDC_ACM_COMM_EPIN               NRF_DRV_USBD_EPIN2
+
+#define CDC_ACM_DATA_INTERFACE          1
+#define CDC_ACM_DATA_EPIN               NRF_DRV_USBD_EPIN1
+#define CDC_ACM_DATA_EPOUT              NRF_DRV_USBD_EPOUT1
+
+/* Buffers must be word-aligned, and also be able to fit two instances of the largest possible
+ * packet, to avoid it locking up if the head is in the middle of the buffer. */
+#define RX_BUFFER_SIZE                  (2 * ALIGN_VAL(sizeof(serial_packet_t) + sizeof(packet_buffer_packet_t), WORD_SIZE))
+#define TX_BUFFER_SIZE                  (64 * ALIGN_VAL(sizeof(serial_packet_t) + sizeof(packet_buffer_packet_t), WORD_SIZE))
+#define CMD_RSP_BUFFER_SIZE             (2 * ALIGN_VAL(sizeof(serial_packet_t) + sizeof(packet_buffer_packet_t), WORD_SIZE))
+#define SERIAL_PACKET_ENCODED_SIZE      (1UL + (sizeof(serial_packet_t) * 2) + 1UL)
+
 /** Defines for SLIP encoding: see https://tools.ietf.org/html/rfc1055 */
-#define SLIP_END     0xC0
-#define SLIP_ESC     0xDB
-#define SLIP_ESC_END 0xDC
-#define SLIP_ESC_ESC 0xDD
+#define SLIP_END                        0xC0
+#define SLIP_ESC                        0xDB
+#define SLIP_ESC_END                    0xDC
+#define SLIP_ESC_ESC                    0xDD
+
+
 
 /********** Local typedefs **********/
 
@@ -68,466 +65,488 @@ typedef enum
 } serial_bearer_state_t;
 
 
-/********** Static variables **********/
+/* forward declaration of static functions */
 
-/* Buffers must be word-aligned, and also be able to fit two instances of the largest possible
- * packet, to avoid it locking up if the head is in the middle of the buffer. */
-#define RX_BUFFER_SIZE (2 * ALIGN_VAL(sizeof(serial_packet_t) + sizeof(packet_buffer_packet_t), WORD_SIZE))
-#define TX_BUFFER_SIZE (2 * ALIGN_VAL(sizeof(serial_packet_t) + sizeof(packet_buffer_packet_t), WORD_SIZE))
+static void usbd_user_ev_handler(app_usbd_event_type_t event);
+static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const *p_inst,
+                                    app_usbd_cdc_acm_user_event_t event);
+
+/********** Static variables **********/
 
 static uint8_t m_tx_buffer[TX_BUFFER_SIZE];
 static packet_buffer_t m_tx_packet_buf;
-static packet_buffer_packet_t * mp_current_tx_packet;
-static uint16_t m_cur_tx_packet_index;
-static uint16_t m_stored_pac_len;
+static uint8_t m_tx_cmd_rsp_buffer[CMD_RSP_BUFFER_SIZE];
+static packet_buffer_t m_tx_cmd_rsp_packet_buf;
 static uint8_t m_rx_buffer[RX_BUFFER_SIZE];
 static packet_buffer_t m_rx_packet_buf;
-static packet_buffer_packet_t * mp_current_rx_packet;
-static serial_bearer_state_t m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
-static uint32_t m_event_flag;
-static uint16_t m_ignore_rx_count;
 
-#ifdef SERIAL_SLIP_ENCODING
-static uint8_t m_tx_slip_byte;
-#endif
+static uint8_t m_rx_buffer_encoded[SERIAL_PACKET_ENCODED_SIZE];
+int m_rx_idx_encoded = 0;
+
+static serial_bearer_state_t m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
+
+static uint32_t m_do_transmit_event_flag;
+static bool m_ready;
+
+static const app_usbd_config_t usbd_config = {
+    .ev_state_proc = usbd_user_ev_handler
+};
+
+APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
+                            cdc_acm_user_ev_handler,
+                            CDC_ACM_COMM_INTERFACE,
+                            CDC_ACM_DATA_INTERFACE,
+                            CDC_ACM_COMM_EPIN,
+                            CDC_ACM_DATA_EPIN,
+                            CDC_ACM_DATA_EPOUT,
+                            APP_USBD_CDC_COMM_PROTOCOL_AT_V250
+);
+
 
 /* Serial receive relies on the length field of a serial packet being the first byte and opcode being the second byte */
 NRF_MESH_STATIC_ASSERT(offsetof(serial_packet_t, length) == 0);
 
+// FIXME: drop
+size_t m_data_len = 32 - 2;
+int m_packet_in_count;
+int m_packet_in_repeats;
+int m_packet_in_drop;
+static int m_packest_in_tx_queue = 0;
+static int m_tx_count, m_tx_done_count;
+
+
+
 /********** Static Functions **********/
+
+static size_t slip_encode(const uint8_t *src, ssize_t src_len,
+                          uint8_t *dest, size_t dest_len)
+{
+    int src_i, dest_i = 0;
+
+    dest[dest_i++] = SLIP_END;
+    for (src_i = 0; src_i < src_len && dest_i < dest_len; src_i++, dest_i++) {
+        if (SLIP_END == src[src_i]) {
+            dest[dest_i++] = SLIP_ESC;
+            if (dest_i >= dest_len) break;
+            dest[dest_i] = SLIP_ESC_END;
+        } else if (SLIP_ESC == src[src_i]) {
+            dest[dest_i++] = SLIP_ESC;
+            if (dest_i >= dest_len) break;
+            dest[dest_i] = SLIP_ESC_ESC;
+        } else {
+            dest[dest_i] = src[src_i];
+        }
+    }
+    dest[dest_i++] = SLIP_END;
+
+    return dest_i;
+}
+
+
+static size_t slip_decode(const uint8_t *src, ssize_t src_len,
+                          uint8_t *dest, size_t dest_len)
+{
+    int src_i, dest_i = 0;
+    uint8_t prev_char = 0;
+
+    for (src_i = 0; src_i < src_len && dest_i < dest_len; src_i++) {
+        if (SLIP_END == src[src_i]) {
+            break;
+        } else if (SLIP_ESC != prev_char) {
+            if (SLIP_ESC != src[src_i]) {
+                dest[dest_i++] = src[src_i];
+            }
+        } else {
+            switch (src[src_i]) {
+            case SLIP_ESC_END:
+                dest[dest_i++] = SLIP_END;
+                break;
+            case SLIP_ESC_ESC:
+                dest[dest_i++] = SLIP_ESC;
+                break;
+            default:
+                return dest_i;
+            }
+        }
+        prev_char = src[src_i];
+    }
+
+    return dest_i;
+}
+
 
 static void schedule_transmit(void)
 {
-    bearer_event_flag_set(m_event_flag);
+    bearer_event_flag_set(m_do_transmit_event_flag);
 }
 
-static void send_cmd_response(uint8_t status, uint8_t opcode, uint32_t token)
-{
-    serial_packet_t * p_rsp;
-    if (NRF_SUCCESS == serial_bearer_packet_buffer_get(SERIAL_EVT_CMD_RSP_LEN_OVERHEAD, &p_rsp))
-    {
-        p_rsp->opcode = SERIAL_OPCODE_EVT_CMD_RSP;
-        p_rsp->payload.evt.cmd_rsp.opcode = opcode;
-        p_rsp->payload.evt.cmd_rsp.status = status;
-        p_rsp->payload.evt.cmd_rsp.token = token;
-        serial_bearer_tx(p_rsp);
-    }
-}
 
-static void end_reception(uint16_t * p_rx_index)
-{
-    if (*p_rx_index != 0)
-    {
-        /* Check if the number of bytes received matched the number of bytes expected. */
-        serial_packet_t* packet_received = (serial_packet_t*)(mp_current_rx_packet->packet);
+static void do_receive(uint8_t *data, size_t length) {
+    int i;
+    uint8_t packet_length;
+    size_t decode_length;
+    packet_buffer_packet_t *rx_packet;
 
-        if (*p_rx_index != packet_received->length + 1)
-        {
-            /*Send error with the opcode received: */
-            uint32_t token =
-                (*p_rx_index < SERIAL_PACKET_LENGTH_OVERHEAD + SERIAL_PACKET_OVERHEAD + SERIAL_CMD_OVERHEAD) ?
-                    UINT32_MAX : ((serial_packet_t *)mp_current_rx_packet)->payload.cmd.token;
-            send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, ((serial_packet_t *)mp_current_rx_packet)->opcode, token);
-            serial_handler_rx_fail_report();
-            packet_buffer_free(&m_rx_packet_buf, mp_current_rx_packet);
-            mp_current_rx_packet = NULL;
-        }
-        else
-        {
-            /* The packet is complete, commit and process */
-            packet_buffer_commit(&m_rx_packet_buf, mp_current_rx_packet, mp_current_rx_packet->size);
-            mp_current_rx_packet = NULL;
-            serial_process();
-        }
-        *p_rx_index = 0;
-    }
-}
+    for (i = 0; i < length; i++) {
+        if (data[i] == SLIP_END) {
+            if (m_rx_idx_encoded > 0) {
+                /* first we get the packet size */
+                decode_length = slip_decode(m_rx_buffer_encoded, m_rx_idx_encoded,
+                                            &packet_length, sizeof(packet_length));
+                if (decode_length != sizeof(packet_length)) {
+                    /* received packet is too small to even contain a field with the size of the entire packet */
+                    serial_bearer_cmd_rsp_send(0, UINT32_MAX, SERIAL_STATUS_ERROR_INTERNAL, NULL, 0);
+                    serial_handler_rx_fail_report();
+                    NRF_LOG_ERROR("%s(): invalid packet", __func__);
+                } else if (NRF_SUCCESS != packet_buffer_reserve(&m_rx_packet_buf, &rx_packet, packet_length + 1)) {
+                    /* abnormal situation: we won't even unpack the packet header to form a correct response */
+                    serial_bearer_cmd_rsp_send(0, UINT32_MAX, SERIAL_STATUS_ERROR_INTERNAL, NULL, 0);
+                    serial_handler_rx_fail_report();
+                    NRF_LOG_ERROR("%s(): can't reserve packet %d", __func__, packet_length + 1);
+                } else {
+                    /* now we can decode the whole packet */
+                    decode_length = slip_decode(m_rx_buffer_encoded, m_rx_idx_encoded,
+                                                rx_packet->packet, packet_length + 1);
+                    if (decode_length != packet_length + 1) {
+                        /* the size of the decoded packet does not match the header */
+                        uint32_t token =
+                            (decode_length < SERIAL_PACKET_LENGTH_OVERHEAD + SERIAL_PACKET_OVERHEAD + SERIAL_CMD_OVERHEAD) ?
+                                UINT32_MAX : ((serial_packet_t *)rx_packet->packet)->payload.cmd.token;
+                        serial_bearer_cmd_rsp_send(((serial_packet_t *)rx_packet->packet)->opcode, token, SERIAL_STATUS_ERROR_INVALID_LENGTH, NULL, 0);
+                        serial_handler_rx_fail_report();
+                        packet_buffer_free(&m_rx_packet_buf, rx_packet);
+                    } else {
+                        /* packet has been successfully received and is ready for processing */
+                        packet_buffer_commit(&m_rx_packet_buf, rx_packet, rx_packet->size);
+                        serial_process();
+                    }
+                }
 
-static bool rx_packet_reserve(uint16_t pac_len)
-{
-    if (pac_len <= 1 || pac_len > packet_buffer_max_packet_len_get(&m_rx_packet_buf)
-            || pac_len > sizeof(serial_packet_t))
-    {
-        m_ignore_rx_count = pac_len - 1; /* Ignore the rest of the bytes in the packet. */
-        send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, 0, UINT32_MAX);
-        serial_handler_rx_fail_report();
-        return false;
-    }
-    else if (NRF_SUCCESS != packet_buffer_reserve(&m_rx_packet_buf, &mp_current_rx_packet, pac_len))
-    {
-        m_stored_pac_len = pac_len;
-        serial_uart_receive_set(false);
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
-static bool char_rx_first_byte(uint16_t * p_rx_index, uint8_t byte_received)
-{
-    /* First index is the length field. Check and reserve if we have enough space. */
-    uint16_t packet_length = (uint16_t)byte_received + 1;
-    bool packet_reserved = true;
-    /* If we had halted the reception of a packet earlier, we should have
-     * buffered a packet length already and what we receive now would be the
-     * second byte. This assumes that we have explicitly enabled the hardware
-     * to receive more, and does not handle bytes being passed in otherwise. */
-    if (m_stored_pac_len != 0)
-    {
-        packet_length = m_stored_pac_len;
-    }
-    packet_reserved = rx_packet_reserve(packet_length);
-    if (packet_reserved && m_stored_pac_len != 0)
-    {
-        m_stored_pac_len = 0;
-        mp_current_rx_packet->packet[*p_rx_index] = packet_length - 1;
-        (*p_rx_index)++;
-    }
-
-    return packet_reserved;
-}
-
-#ifndef SERIAL_SLIP_ENCODING
-static inline void char_rx_simple(uint16_t * p_rx_index, uint8_t byte_received)
-{
-    if (*p_rx_index == 0 && !char_rx_first_byte(p_rx_index, byte_received))
-    {
-        return; /* Early return since we could not reserve a packet*/
-    }
-
-    mp_current_rx_packet->packet[*p_rx_index] = byte_received;
-    (*p_rx_index)++;
-
-    serial_packet_t* packet_received = (serial_packet_t*)(mp_current_rx_packet->packet);
-    if (NULL != mp_current_rx_packet && *p_rx_index == packet_received->length + 1) /* We have received the complete packet */
-    {
-        end_reception(p_rx_index);
-    }
-}
-
-static inline void char_tx_simple(void)
-{
-    serial_packet_t * p_serial_packet = (serial_packet_t *) mp_current_tx_packet->packet;
-    if (m_cur_tx_packet_index == p_serial_packet->length + SERIAL_PACKET_LENGTH_OVERHEAD) /* We are done sending. */
-    {
-        m_cur_tx_packet_index++;
-        packet_buffer_free(&m_tx_packet_buf, mp_current_tx_packet);
-        mp_current_tx_packet = NULL;
-        serial_uart_tx_stop();
-        m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
-        /* send next packet */
-        schedule_transmit();
-    }
-    else if (m_cur_tx_packet_index < p_serial_packet->length + SERIAL_PACKET_LENGTH_OVERHEAD)
-    { /* Send the next byte in line */
-        uint8_t value = mp_current_tx_packet->packet[m_cur_tx_packet_index];
-        m_cur_tx_packet_index++;
-        serial_uart_byte_send(value);
-    }
-}
-#endif
-
-#ifdef SERIAL_SLIP_ENCODING
-static inline bool valid_slip_byte(uint8_t byte_val)
-{
-    switch (byte_val)
-    {
-        case SLIP_END:
-        case SLIP_ESC:
-        case SLIP_ESC_END:
-        case SLIP_ESC_ESC:
-            return true;
-        default:
-            return false;
-    }
-}
-
-static inline void slip_encoding_get(uint8_t * p_value, uint8_t * p_slip_byte)
-{
-    if (SLIP_END == *p_value)
-    {
-        *p_slip_byte = SLIP_ESC_END;
-        *p_value = SLIP_ESC;
-    }
-    else if (SLIP_ESC == *p_value)
-    {
-        *p_slip_byte = SLIP_ESC_ESC;
-        *p_value = SLIP_ESC;
-    }
-}
-
-/**
- * @brief          Decodes a byte based on the SLIP encoding as specified by rfc1055.
- *
- * @param[in, out] p_c          The pointer to the character received, the value of it may be
- *                              updated if the received character has been escaped earlier.
- * @param[out]     p_skip_byte  The value of this will be set to @c true if this byte should not be
- *                              recorded by the recipient.
- * @param          p_prev_char  The pointer to the previous character, this should be stored by the
- *                              caller.
- *
- * @return         @true if the received byte is an END character or an invalid combination of SLIP
- *                 characters have been received.
- */
-static bool slip_decode(uint8_t * p_c, bool * p_skip_byte, uint8_t * p_prev_char)
-{
-    bool end_of_reception;
-    *p_skip_byte = false;
-    if (SLIP_END == *p_c)
-    {
-        end_of_reception = true;
-        *p_prev_char = *p_c;
-    }
-    else if (*p_prev_char != SLIP_ESC)
-    {
-        if (SLIP_ESC == *p_c)
-        {
-            *p_skip_byte = true;
-        }
-        end_of_reception = false;
-        *p_prev_char = *p_c;
-    }
-    else
-    {
-        *p_prev_char = *p_c;
-        switch (*p_c)
-        {
-            case SLIP_ESC_END:
-                *p_c = SLIP_END;
-                end_of_reception = false;
-                break;
-            case SLIP_ESC_ESC:
-                *p_c = SLIP_ESC;
-                end_of_reception = false;
-                break;
-            default:
-                end_of_reception = true;
-                break;
-        }
-    }
-    return end_of_reception;
-}
-
-static inline void char_tx_with_slip_encoding(void)
-{
-    if (valid_slip_byte(m_tx_slip_byte)) /* Did we store a slip byte during the previous tx? */
-    {
-        serial_uart_byte_send(m_tx_slip_byte);
-        m_tx_slip_byte = 0;
-    }
-    else if (m_cur_tx_packet_index == mp_current_tx_packet->size) /* Is it time to send the END byte? */
-    {
-        m_cur_tx_packet_index++;
-        packet_buffer_free(&m_tx_packet_buf, mp_current_tx_packet);
-        mp_current_tx_packet = NULL;
-        serial_uart_byte_send(SLIP_END);
-    }
-    else /* if (m_cur_tx_packet_index < mp_current_tx_packet->size) */
-    { /* Send the next byte in line, and store the slip byte if necessary */
-        uint8_t value = mp_current_tx_packet->packet[m_cur_tx_packet_index];
-        m_cur_tx_packet_index++;
-        slip_encoding_get(&value, &m_tx_slip_byte);
-        serial_uart_byte_send(value);
-    }
-}
-
-static inline void char_rx_with_slip_encoding(uint16_t * p_rx_index, uint8_t byte_received)
-{
-    static uint8_t prev_char = 0;
-    bool skip_byte;
-    if (slip_decode(&byte_received, &skip_byte, &prev_char))
-    {
-        end_reception(p_rx_index);
-    }
-    else if (NULL != mp_current_rx_packet &&
-             *p_rx_index == ((serial_packet_t*)(mp_current_rx_packet->packet))->length + 1)
-    {
-        uint32_t token = 
-            (*p_rx_index < SERIAL_PACKET_LENGTH_OVERHEAD + SERIAL_PACKET_OVERHEAD + SERIAL_CMD_OVERHEAD) ?
-                UINT32_MAX : ((serial_packet_t *)mp_current_rx_packet)->payload.cmd.token;
-        send_cmd_response(SERIAL_STATUS_ERROR_INVALID_LENGTH, ((serial_packet_t *)mp_current_rx_packet)->opcode, token);
-        serial_handler_rx_fail_report();
-        /* We received something else when we were expecting an END byte. */
-        packet_buffer_free(&m_rx_packet_buf, mp_current_rx_packet);
-        mp_current_rx_packet = NULL;
-        *p_rx_index = 0;
-    }
-    else if (!skip_byte) /* do we need to skip this byte? i.e. is it an escape character? */
-    {
-        if (*p_rx_index == 0 && !char_rx_first_byte(p_rx_index, byte_received))
-        {
-            return; /* Early return since we could not reserve a packet*/
-        }
-
-        if (mp_current_rx_packet != NULL)
-        {
-            mp_current_rx_packet->packet[*p_rx_index] = byte_received;
-            (*p_rx_index)++;
+                m_rx_idx_encoded = 0;
+            }
+        } else {
+            if (m_rx_idx_encoded < sizeof(m_rx_buffer_encoded)) {
+                m_rx_buffer_encoded[m_rx_idx_encoded++] = data[i];
+            }
         }
     }
 }
-#endif
 
-static void char_rx(uint8_t c)
-{
-    static uint16_t rx_index = 0;
 
-#ifdef SERIAL_SLIP_ENCODING
-    if (m_ignore_rx_count > 0)
-    {
-        if (SLIP_END == c)
-        {
-            m_ignore_rx_count = 0;
-        }
-    }
-    else
-    {
-        char_rx_with_slip_encoding(&rx_index, c);
-    }
-#else
-    if (m_ignore_rx_count > 0)
-    {
-        m_ignore_rx_count--;
-    }
-    else
-    {
-        char_rx_simple(&rx_index, c);
-    }
-#endif
-}
-
-static void char_tx(void)
-{
-    /* Unexpected event */
-    NRF_MESH_ASSERT(m_serial_bearer_state != SERIAL_BEARER_STATE_IDLE);
-    if (NULL == mp_current_tx_packet)
-    {
-        /* We have nothing to send. */
-        serial_uart_tx_stop();
-        m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
-        schedule_transmit();
-    }
-    else
-    {
-#ifdef SERIAL_SLIP_ENCODING
-        char_tx_with_slip_encoding();
-#else
-        char_tx_simple();
-#endif
-    }
-}
 
 static bool do_transmit(void)
 {
-    if (SERIAL_BEARER_STATE_IDLE == m_serial_bearer_state &&
-        NRF_SUCCESS == packet_buffer_pop(&m_tx_packet_buf, &mp_current_tx_packet))
-    {
-        m_serial_bearer_state = SERIAL_BEARER_STATE_TRANSMIT;
+    packet_buffer_packet_t *p_current_tx_packet;
+    static uint8_t tx_buffer_encoded[SERIAL_PACKET_ENCODED_SIZE];
+    size_t tx_buffer_encoded_length;
 
-#ifdef SERIAL_SLIP_ENCODING
-        serial_uart_byte_send(SLIP_END);
-        m_cur_tx_packet_index = 0;
-#else
-        uint8_t value = mp_current_tx_packet->packet[0];
-        serial_uart_byte_send(value);
-        m_cur_tx_packet_index = 1;
-#endif
-        serial_uart_tx_start();
+    if (!m_ready || m_serial_bearer_state != SERIAL_BEARER_STATE_IDLE) {
+        return true;
     }
+
+    if (NRF_SUCCESS == packet_buffer_pop(&m_tx_cmd_rsp_packet_buf, &p_current_tx_packet)) {
+        /* first, we process the queue of responses to commands */
+        tx_buffer_encoded_length = slip_encode(p_current_tx_packet->packet,
+                                               p_current_tx_packet->size,
+                                               tx_buffer_encoded,
+                                               sizeof(tx_buffer_encoded));
+        packet_buffer_free(&m_tx_cmd_rsp_packet_buf, p_current_tx_packet);
+    } else if (NRF_SUCCESS == packet_buffer_pop(&m_tx_packet_buf, &p_current_tx_packet)) {
+        /* the ad data queue has a lower priority */
+        tx_buffer_encoded_length = slip_encode(p_current_tx_packet->packet,
+                                               p_current_tx_packet->size,
+                                               tx_buffer_encoded,
+                                               sizeof(tx_buffer_encoded));
+        packet_buffer_free(&m_tx_packet_buf, p_current_tx_packet);
+    } else {
+        return true;
+    }
+
+    ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, tx_buffer_encoded, tx_buffer_encoded_length);
+    if (err_code == NRF_SUCCESS) {
+        m_serial_bearer_state = SERIAL_BEARER_STATE_TRANSMIT;
+    } else {
+        NRF_LOG_ERROR("%s(): app_usbd_cdc_acm_write() failed: 0x%x", __func__, err_code);
+    }
+
     return true;
 }
 
-/********** Interface Functions **********/
-void serial_bearer_init(void)
-{
-    packet_buffer_init(&m_tx_packet_buf, (void *) m_tx_buffer, sizeof(m_tx_buffer));
-    packet_buffer_init(&m_rx_packet_buf, (void *) m_rx_buffer, sizeof(m_rx_buffer));
 
-    NRF_MESH_ASSERT(NRF_SUCCESS == serial_uart_init(char_rx, char_tx));
-    serial_uart_receive_set(true);
+static void usbd_user_ev_handler(app_usbd_event_type_t event)
+{
+    switch (event) {
+    case APP_USBD_EVT_DRV_SUSPEND:
+        NRF_LOG_DEBUG("USB driver suspend");
+        break;
+    case APP_USBD_EVT_DRV_RESUME:
+        NRF_LOG_DEBUG("USB driver resume");
+        break;
+    case APP_USBD_EVT_STARTED:
+        NRF_LOG_DEBUG("USB started");
+        break;
+    case APP_USBD_EVT_STOPPED:
+        NRF_LOG_INFO("USB ready");
+        app_usbd_disable();
+        break;
+    case APP_USBD_EVT_POWER_DETECTED:
+        NRF_LOG_INFO("USB power detected");
+        if (!nrf_drv_usbd_is_enabled()) {
+            app_usbd_enable();
+        }
+        break;
+    case APP_USBD_EVT_POWER_REMOVED:
+        NRF_LOG_INFO("USB power removed");
+        app_usbd_stop();
+        break;
+    case APP_USBD_EVT_POWER_READY:
+        NRF_LOG_INFO("USB ready");
+        app_usbd_start();
+        break;
+    default:
+        break;
+    }
+}
+
+
+static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const *p_inst,
+                                    app_usbd_cdc_acm_user_event_t event)
+{
+    app_usbd_cdc_acm_t const *p_cdc_acm = app_usbd_cdc_acm_class_get(p_inst);
+    static uint8_t rx_buffer[NRF_DRV_USBD_EPSIZE];
+
+    switch (event) {
+    case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
+        NRF_LOG_DEBUG("ACM port open, prev_ready=%d", m_ready);
+
+        UNUSED_VARIABLE(proxy_stop());
+
+        packet_buffer_flush(&m_tx_packet_buf);
+        packet_buffer_flush(&m_tx_cmd_rsp_packet_buf);
+        packet_buffer_flush(&m_rx_packet_buf);
+
+        m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
+        m_ready = true;
+
+        /* setup first transfer */
+        UNUSED_VARIABLE(app_usbd_cdc_acm_read_any(&m_app_cdc_acm,
+                                                   rx_buffer,
+                                                   sizeof(rx_buffer)));
+
+        /* Send device started event. */
+//        serial_evt_device_started_t evt_started;
+//        evt_started.operating_mode = SERIAL_DEVICE_OPERATING_MODE_APPLICATION;
+//        evt_started.hw_error = NRF_POWER->RESETREAS & RESET_REASONS_HW_ERROR;
+//        evt_started.data_credit_available = SERIAL_PACKET_PAYLOAD_MAXLEN;
+
+//        uint32_t serial_bearer_cmd_rsp_send(SERIAL_OPCODE_EVT_DEVICE_STARTED, uint32_t token, uint8_t status,
+//                                    const uint8_t *p_data, uint16_t length)
+
+//        p_start_packet->opcode = SERIAL_OPCODE_EVT_DEVICE_STARTED;
+//        serial_tx(p_start_packet);
+//    }
+//    return err_code;
+
+        break;
+
+    case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
+        UNUSED_VARIABLE(proxy_stop());
+        m_ready = false;
+        break;
+
+    case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
+        m_tx_done_count++;
+        m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
+        schedule_transmit();
+        break;
+
+    case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
+        {
+            ret_code_t err_code;
+
+            do {
+                size_t size = app_usbd_cdc_acm_rx_size(p_cdc_acm);
+                do_receive(rx_buffer, size);
+
+                /* fetch data until internal buffer is empty */
+                err_code = app_usbd_cdc_acm_read_any(&m_app_cdc_acm,
+                                                     rx_buffer,
+                                                     sizeof(rx_buffer));
+            } while (err_code == NRF_SUCCESS);
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
+
+
+/********** Interface Functions **********/
+
+uint32_t serial_bearer_init(void)
+{
+    uint32_t err_code = app_usbd_init(&usbd_config);
+    if (err_code != NRF_SUCCESS) {
+        return err_code;
+    }
+
+    app_usbd_class_inst_t const *class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&m_app_cdc_acm);
+    err_code = app_usbd_class_append(class_cdc_acm);
+    if (NRF_SUCCESS != err_code) {
+        return err_code;
+    }
+
+    packet_buffer_init(&m_tx_packet_buf, (void *)m_tx_buffer, sizeof(m_tx_buffer));
+    packet_buffer_init(&m_tx_cmd_rsp_packet_buf, (void *)m_tx_cmd_rsp_buffer, sizeof(m_tx_cmd_rsp_buffer));
+    packet_buffer_init(&m_rx_packet_buf, (void *)m_rx_buffer, sizeof(m_rx_buffer));
+
+    m_do_transmit_event_flag = bearer_event_flag_add(do_transmit);
 
     m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
-    m_stored_pac_len = 0;
-    m_cur_tx_packet_index = 0;
-#ifdef SERIAL_SLIP_ENCODING
-    m_tx_slip_byte = 0;
-#endif
+    m_ready = false;
 
-    m_event_flag = bearer_event_flag_add(do_transmit);
+    return NRF_SUCCESS;
 }
 
-uint32_t serial_bearer_packet_buffer_get(uint16_t packet_len, serial_packet_t ** pp_packet)
+
+uint32_t serial_bearer_start(void)
 {
-    packet_buffer_packet_t * p_reserved_buffer_packet;
-
-    uint32_t status = packet_buffer_reserve(&m_tx_packet_buf, &p_reserved_buffer_packet, packet_len + SERIAL_PACKET_LENGTH_OVERHEAD);
-
-    if (status == NRF_SUCCESS)
-    {
-        *pp_packet = (serial_packet_t *) p_reserved_buffer_packet->packet;
-        (*pp_packet)->length = packet_len;
+    if (m_ready) {
+        return NRF_ERROR_INVALID_STATE;
     }
-    return status;
+
+    app_usbd_enable();
+    app_usbd_start();
+
+    return NRF_SUCCESS;
 }
 
-uint32_t serial_bearer_blocking_buffer_get(uint16_t packet_len, serial_packet_t ** pp_packet)
+
+uint32_t serial_bearer_ad_data_send(uint8_t ad_type, const uint8_t *p_data, uint16_t length)
 {
-    uint32_t status;
-    while (1)
-    {
-        status = serial_bearer_packet_buffer_get(packet_len, pp_packet);
-        if (status == NRF_ERROR_NO_MEM)
-        {
-            NVIC_DisableIRQ(UART0_IRQn);
-            serial_uart_process();
-            if (SERIAL_BEARER_STATE_IDLE == m_serial_bearer_state)
-            {
-                (void)do_transmit();
-            }
-            NVIC_EnableIRQ(UART0_IRQn);
-        }
-        else
-        {
-            break;
-        }
+    packet_buffer_packet_t *p_buf_packet;
+    serial_packet_t *p_packet;
+    size_t packet_len = SERIAL_PACKET_OVERHEAD + BLE_AD_DATA_HEADER_LENGTH + length;
+
+    NRF_MESH_ASSERT(p_data != NULL && length > 0);
+
+    if (!m_ready) {
+        return NRF_ERROR_INVALID_STATE;
     }
-    return status;
-}
 
-void serial_bearer_tx(const serial_packet_t * p_packet)
-{
-    NRF_MESH_ASSERT(NULL != p_packet);
+    uint32_t err_code = packet_buffer_reserve(&m_tx_packet_buf, &p_buf_packet,
+                                              packet_len + SERIAL_PACKET_LENGTH_OVERHEAD);
+    if (err_code != NRF_SUCCESS)  {
+        NRF_LOG_ERROR("%s(): can't reserve packet ad data: 0x%x", __func__, err_code);
+        serial_handler_alloc_fail_report();
+        return err_code;
+    }
 
-    packet_buffer_packet_t * p_reserved_buffer_packet = (packet_buffer_packet_t *) ((uint32_t) p_packet - offsetof(packet_buffer_packet_t, packet));
-
-    NRF_MESH_ASSERT(PACKET_BUFFER_MEM_STATE_RESERVED == p_reserved_buffer_packet->packet_state);
-    NRF_MESH_ASSERT(p_packet->length <= p_reserved_buffer_packet->size);
+    p_packet = (serial_packet_t *)p_buf_packet->packet;
+    p_packet->length = packet_len;
+    p_packet->opcode = SERIAL_OPCODE_EVT_AD_DATA_RECEIVED;
+    p_packet->payload.evt.ad_data.data[0] = length + BLE_AD_DATA_OVERHEAD;
+    p_packet->payload.evt.ad_data.data[1] = ad_type;
+    memcpy(p_packet->payload.evt.ad_data.data + 2, p_data, length);
 
     bearer_event_critical_section_begin();
     schedule_transmit();
-    packet_buffer_commit(&m_tx_packet_buf, p_reserved_buffer_packet, p_reserved_buffer_packet->size);
+    packet_buffer_commit(&m_tx_packet_buf, p_buf_packet, p_buf_packet->size);
     bearer_event_critical_section_end();
+
+    return NRF_SUCCESS;
 }
 
-bool serial_bearer_rx_get(serial_packet_t* p_packet)
+
+uint32_t serial_bearer_cmd_rsp_send(uint8_t opcode, uint32_t token, uint8_t status,
+                                    const uint8_t *p_data, uint16_t length)
 {
     packet_buffer_packet_t *p_buf_packet;
-    if (NRF_SUCCESS == packet_buffer_pop(&m_rx_packet_buf, &p_buf_packet))
-    {
-        memcpy(p_packet, p_buf_packet->packet, p_buf_packet->size);
-        packet_buffer_free(&m_rx_packet_buf, p_buf_packet);
-        serial_uart_receive_set(true);
-        return true;
+    serial_packet_t *p_rsp;
+    size_t packet_len = SERIAL_EVT_CMD_RSP_LEN_OVERHEAD + length;
+
+    NRF_MESH_ASSERT((p_data == NULL && length == 0) || (p_data != NULL && length > 0));
+
+    if (!m_ready) {
+        return NRF_ERROR_INVALID_STATE;
     }
-    else
-    {
-        return false;
+
+    uint32_t err_code = packet_buffer_reserve(&m_tx_cmd_rsp_packet_buf, &p_buf_packet,
+                                               packet_len + SERIAL_PACKET_LENGTH_OVERHEAD);
+    if (err_code != NRF_SUCCESS)  {
+        NRF_LOG_ERROR("%s(): can't reserve packet for command response: 0x%x", __func__, err_code);
+        serial_handler_alloc_fail_report();
+        return err_code;
     }
+
+    p_rsp = (serial_packet_t *)p_buf_packet->packet;
+    p_rsp->length = packet_len;
+    p_rsp->opcode = SERIAL_OPCODE_EVT_CMD_RSP;
+    p_rsp->payload.evt.cmd_rsp.opcode = opcode;
+    p_rsp->payload.evt.cmd_rsp.status = status;
+    p_rsp->payload.evt.cmd_rsp.token = token;
+    memcpy(&p_rsp->payload.evt.cmd_rsp.data, p_data, length);
+
+    bearer_event_critical_section_begin();
+    schedule_transmit();
+    packet_buffer_commit(&m_tx_cmd_rsp_packet_buf, p_buf_packet, p_buf_packet->size);
+    bearer_event_critical_section_end();
+
+    return NRF_SUCCESS;
 }
 
-bool serial_bearer_rx_pending(void)
+
+//uint32_t serial_bearer_evt_send(uint8_t opcode, const uint8_t *p_data, uint16_t length)
+//{
+//    packet_buffer_packet_t *p_buf_packet;
+//    serial_packet_t *p_packet;
+//    size_t packet_len = SERIAL_PACKET_OVERHEAD + BLE_AD_DATA_HEADER_LENGTH + length;
+
+//    NRF_MESH_ASSERT(p_data != NULL && length > 0);
+
+//    if (!m_ready) {
+//        return NRF_ERROR_INVALID_STATE;
+//    }
+
+//    uint32_t err_code = packet_buffer_reserve(&m_tx_packet_buf, &p_buf_packet,
+//                                              packet_len + SERIAL_PACKET_LENGTH_OVERHEAD);
+//    if (err_code != NRF_SUCCESS)  {
+//        NRF_LOG_ERROR("%s(): can't reserve packet ad data: 0x%x", __func__, err_code);
+//        serial_handler_alloc_fail_report();
+//        return err_code;
+//    }
+
+//    p_packet = (serial_packet_t *)p_buf_packet->packet;
+//    p_packet->length = packet_len;
+//    p_packet->opcode = SERIAL_OPCODE_EVT_AD_DATA_RECEIVED;
+//    p_packet->payload.evt.ad_data.data[0] = length + BLE_AD_DATA_OVERHEAD;
+//    p_packet->payload.evt.ad_data.data[1] = ad_type;
+//    memcpy(p_packet->payload.evt.ad_data.data + 2, p_data, length);
+
+//    bearer_event_critical_section_begin();
+//    schedule_transmit();
+//    packet_buffer_commit(&m_tx_packet_buf, p_buf_packet, p_buf_packet->size);
+//    bearer_event_critical_section_end();
+
+//    return NRF_SUCCESS;
+//}
+
+
+bool serial_bearer_rx_get(serial_packet_t *p_packet)
 {
-    return packet_buffer_can_pop(&m_rx_packet_buf);
+    packet_buffer_packet_t *p_buf_packet;
+
+    if (!m_ready) {
+        return false;
+    }
+
+    if (packet_buffer_pop(&m_rx_packet_buf, &p_buf_packet) != NRF_SUCCESS) {
+        return false;
+    }
+
+    memcpy(p_packet, p_buf_packet->packet, p_buf_packet->size);
+    packet_buffer_free(&m_rx_packet_buf, p_buf_packet);
+    return true;
 }

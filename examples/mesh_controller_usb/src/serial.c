@@ -57,6 +57,9 @@
 #include "serial_packet.h"
 #include "serial_cmd_handler.h"
 
+/* logging */
+#include "nrf5_sdk_log.h"
+
 
 /* The serial_device_operating_mode_t must fit inside a single byte, to make sure it can go into the packet. */
 NRF_MESH_STATIC_ASSERT(SERIAL_DEVICE_OPERATING_MODE__LAST <= 0xFF);
@@ -99,40 +102,53 @@ uint32_t serial_init(void)
     {
         return NRF_ERROR_INVALID_STATE;
     }
-    else
+
+    uint32_t err_code = serial_bearer_init();
+    if (NRF_SUCCESS != err_code)
     {
-        serial_bearer_init();
-        m_state = SERIAL_STATE_INITIALIZED;
-        return NRF_SUCCESS;
+        return err_code;
     }
+
+    m_state = SERIAL_STATE_INITIALIZED;
+    return NRF_SUCCESS;
 }
 
 uint32_t serial_start(void)
 {
     if (m_state != SERIAL_STATE_INITIALIZED)
     {
-        __LOG(LOG_SRC_SERIAL, LOG_LEVEL_WARN, "Not initialized.");
+        NRF_LOG_WARNING("Not initialized.");
         return NRF_ERROR_INVALID_STATE;
     }
+
+    uint32_t err_code = serial_bearer_start();
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
     m_state = SERIAL_STATE_RUNNING;
+
+    return NRF_SUCCESS;
+
     /* Send device started event. */
-    serial_packet_t * p_start_packet;
+//    serial_packet_t * p_start_packet;
     /* Should not fail: */
-    uint32_t err_code = serial_packet_buffer_get(sizeof(serial_evt_device_started_t) + SERIAL_PACKET_OVERHEAD, &p_start_packet);
-    if (NRF_SUCCESS != err_code)
-    {
-        __LOG(LOG_SRC_SERIAL, LOG_LEVEL_ERROR, "Unable to get a serial packet buffer, error_code: %u\n", err_code);
-        m_state = SERIAL_STATE_INITIALIZED;
-    }
-    else
-    {
-        p_start_packet->opcode = SERIAL_OPCODE_EVT_DEVICE_STARTED;
-        p_start_packet->payload.evt.started.operating_mode = SERIAL_DEVICE_OPERATING_MODE_APPLICATION;
-        p_start_packet->payload.evt.started.hw_error = NRF_POWER->RESETREAS & RESET_REASONS_HW_ERROR;
-        p_start_packet->payload.evt.started.data_credit_available = SERIAL_PACKET_PAYLOAD_MAXLEN;
-        serial_tx(p_start_packet);
-    }
-    return err_code;
+//    err_code = serial_packet_buffer_get(sizeof(serial_evt_device_started_t) + SERIAL_PACKET_OVERHEAD, &p_start_packet);
+//    if (NRF_SUCCESS != err_code)
+//    {
+//        NRF_LOG_ERROR("Unable to get a serial packet buffer, error_code: %u", err_code);
+//        m_state = SERIAL_STATE_INITIALIZED;
+//    }
+//    else
+//    {
+//        p_start_packet->opcode = SERIAL_OPCODE_EVT_DEVICE_STARTED;
+//        p_start_packet->payload.evt.started.operating_mode = SERIAL_DEVICE_OPERATING_MODE_APPLICATION;
+//        p_start_packet->payload.evt.started.hw_error = NRF_POWER->RESETREAS & RESET_REASONS_HW_ERROR;
+//        p_start_packet->payload.evt.started.data_credit_available = SERIAL_PACKET_PAYLOAD_MAXLEN;
+//        serial_tx(p_start_packet);
+//    }
+//    return err_code;
 }
 
 uint32_t serial_packet_buffer_get(uint16_t packet_len, serial_packet_t ** pp_packet)
@@ -232,28 +248,28 @@ serial_state_t serial_state_get(void)
     return m_state;
 }
 
-void serial_cmd_rsp_send(uint8_t opcode, uint32_t token, uint8_t status, const uint8_t * p_data, uint16_t length)
+
+uint32_t serial_ad_data_send(uint8_t ad_type, const uint8_t *p_data, uint16_t length)
+{
+    NRF_MESH_ASSERT(p_data != NULL && length != 0);
+
+    if (m_state != SERIAL_STATE_RUNNING)
+    {
+        return NRF_ERROR_INVALID_STATE;
+    }
+
+
+    return serial_bearer_ad_data_send(ad_type, p_data, length);
+}
+
+
+uint32_t serial_cmd_rsp_send(uint8_t opcode, uint32_t token, uint8_t status, const uint8_t * p_data, uint16_t length)
 {
     NRF_MESH_ASSERT((p_data != NULL && length != 0) || (p_data == NULL && length == 0));
     if (m_state != SERIAL_STATE_RUNNING)
     {
-        return;
+        return NRF_ERROR_INVALID_STATE;
     }
 
-    serial_packet_t * p_rsp;
-    uint32_t err_code = serial_packet_buffer_get(SERIAL_EVT_CMD_RSP_LEN_OVERHEAD + length, &p_rsp);
-    if (err_code == NRF_SUCCESS)
-    {
-        p_rsp->opcode = SERIAL_OPCODE_EVT_CMD_RSP;
-        p_rsp->payload.evt.cmd_rsp.opcode = opcode;
-        p_rsp->payload.evt.cmd_rsp.token = token;
-        p_rsp->payload.evt.cmd_rsp.status = status;
-
-        if (p_data != NULL)
-        {
-            memcpy(&p_rsp->payload.evt.cmd_rsp.data, p_data, length);
-        }
-
-        (void) serial_tx(p_rsp);
-    }
+    return serial_bearer_cmd_rsp_send(opcode, token, status, p_data, length);
 }

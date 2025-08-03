@@ -66,13 +66,14 @@ uint32_t proxy_start(void);
 uint32_t proxy_stop(void);
 
 /**
- * Notifies the proxy server that a mesh packet was successfully processed in the network layer.
+ * Sending advertising packet.
  *
- * @param[in] p_net_metadata Network metadata associated with the processed packet.
- * @param[in] p_rx_meta RX metadata tied to the packet.
+ * @param[in] token                     Packet token.
+                                        Used in the response to identify the command.
+ * @param[in] p_data                    Advertising packet data.
+ * @param[in] data_len                  Advertising packet length.
  */
-void ad_data_proxy_tx(nrf_mesh_tx_token_t token, const uint8_t *data, int length);
-
+void ad_data_proxy_tx(nrf_mesh_tx_token_t token, const uint8_t *p_data, int length);
 
 
 #endif /* AD_DATA_PROXY_H__ */
