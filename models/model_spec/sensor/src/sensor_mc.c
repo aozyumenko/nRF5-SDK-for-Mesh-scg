@@ -7,7 +7,8 @@
 #include "mesh_config.h"
 #include "mesh_opt.h"
 
-#include "nrf5_sdk_log.h"
+/* Logging and RTT */
+#include "log.h"
 
 
 
