@@ -48,6 +48,7 @@
 /* Enable Property characteristics */
 
 typedef uint8_t chr_boolean_t;
+typedef uint8_t chr_percentage8_t;
 typedef uint16_t chr_electric_current_t;
 typedef uint32_t chr_energy32_t;
 typedef uint16_t chr_voltage_t;
