@@ -106,14 +106,6 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
 /* Serial receive relies on the length field of a serial packet being the first byte and opcode being the second byte */
 NRF_MESH_STATIC_ASSERT(offsetof(serial_packet_t, length) == 0);
 
-// FIXME: drop
-size_t m_data_len = 32 - 2;
-int m_packet_in_count;
-int m_packet_in_repeats;
-int m_packet_in_drop;
-static int m_packest_in_tx_queue = 0;
-static int m_tx_count, m_tx_done_count;
-
 
 
 /********** Static Functions **********/
@@ -233,7 +225,6 @@ static void do_receive(uint8_t *data, size_t length) {
 }
 
 
-
 static bool do_transmit(void)
 {
     packet_buffer_packet_t *p_current_tx_packet;
@@ -344,8 +335,6 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const *p_inst,
 
 //        p_start_packet->opcode = SERIAL_OPCODE_EVT_DEVICE_STARTED;
 //        serial_tx(p_start_packet);
-//    }
-//    return err_code;
 
         break;
 
@@ -355,7 +344,6 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const *p_inst,
         break;
 
     case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
-        m_tx_done_count++;
         m_serial_bearer_state = SERIAL_BEARER_STATE_IDLE;
         schedule_transmit();
         break;
@@ -496,42 +484,6 @@ uint32_t serial_bearer_cmd_rsp_send(uint8_t opcode, uint32_t token, uint8_t stat
 
     return NRF_SUCCESS;
 }
-
-
-//uint32_t serial_bearer_evt_send(uint8_t opcode, const uint8_t *p_data, uint16_t length)
-//{
-//    packet_buffer_packet_t *p_buf_packet;
-//    serial_packet_t *p_packet;
-//    size_t packet_len = SERIAL_PACKET_OVERHEAD + BLE_AD_DATA_HEADER_LENGTH + length;
-
-//    NRF_MESH_ASSERT(p_data != NULL && length > 0);
-
-//    if (!m_ready) {
-//        return NRF_ERROR_INVALID_STATE;
-//    }
-
-//    uint32_t err_code = packet_buffer_reserve(&m_tx_packet_buf, &p_buf_packet,
-//                                              packet_len + SERIAL_PACKET_LENGTH_OVERHEAD);
-//    if (err_code != NRF_SUCCESS)  {
-//        NRF_LOG_ERROR("%s(): can't reserve packet ad data: 0x%x", __func__, err_code);
-//        serial_handler_alloc_fail_report();
-//        return err_code;
-//    }
-
-//    p_packet = (serial_packet_t *)p_buf_packet->packet;
-//    p_packet->length = packet_len;
-//    p_packet->opcode = SERIAL_OPCODE_EVT_AD_DATA_RECEIVED;
-//    p_packet->payload.evt.ad_data.data[0] = length + BLE_AD_DATA_OVERHEAD;
-//    p_packet->payload.evt.ad_data.data[1] = ad_type;
-//    memcpy(p_packet->payload.evt.ad_data.data + 2, p_data, length);
-
-//    bearer_event_critical_section_begin();
-//    schedule_transmit();
-//    packet_buffer_commit(&m_tx_packet_buf, p_buf_packet, p_buf_packet->size);
-//    bearer_event_critical_section_end();
-
-//    return NRF_SUCCESS;
-//}
 
 
 bool serial_bearer_rx_get(serial_packet_t *p_packet)

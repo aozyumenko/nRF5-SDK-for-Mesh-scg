@@ -15,6 +15,7 @@
 #include "nrf_mesh_config_examples.h"
 #include "mesh_opt_prov.h"
 #include "app_timer.h"
+#include "app_usbd.h"
 #include "ctrl_led.h"
 #include "example_common.h"
 #include "nrf_mesh_configure.h"
@@ -55,27 +56,21 @@ static void mesh_init(void)
 
     NRF_LOG_INFO("Initializing BLE Advertizing Data proxy interface...");
     ERROR_CHECK(ad_data_proxy_init());
-
-    NRF_LOG_INFO("Statrting serial interface...");
-    ERROR_CHECK(serial_start());
 }
 
 
 static void initialize(void)
 {
-#if defined(NRF51) && defined(NRF_MESH_STACK_DEPTH)
-    stack_depth_paint_stack();
-#endif
     ERROR_CHECK(NRF_LOG_INIT(NULL));
     NRF_LOG_DEFAULT_BACKENDS_INIT();
     NRF_LOG_INFO("----- Bluetooth Mesh Controller Application -----");
 
     ERROR_CHECK(app_timer_init());
+    ctrl_led_init();
+    ctrl_led_set(LED_1, true);
 
     NRF_LOG_INFO("Initializing serial interface...");
     ERROR_CHECK(serial_init());
-
-//    ctrl_led_init();
 
     ble_stack_init();
     mesh_init();
@@ -90,6 +85,9 @@ static void start(void)
 
     ERROR_CHECK(mesh_stack_start());
 
+    NRF_LOG_INFO("Statrting serial interface...");
+    ERROR_CHECK(serial_start());
+
     NRF_LOG_INFO("Bluetooth Mesh Controller Application started!");
 }
 
@@ -99,16 +97,6 @@ int main(void)
 {
     initialize();
     start();
-
-//    ctrl_led_set(LED_1, true);
-//    ctrl_led_blink(LED_1, 500);
-//    ctrl_led_blink(LED_2, 500);
-//    ctrl_led_blink(LED_3, 500);
-//    ctrl_led_blink(LED_4, 500);
-//    ctrl_led_blink(LED_5, 500);
-//    ctrl_led_blink(LED_6, 500);
-//    ctrl_led_blink(LED_7, 500);
-//    ctrl_led_blink(LED_8, 500);
 
     for (;;) {
         while (app_usbd_event_queue_process()) {}

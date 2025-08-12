@@ -130,25 +130,6 @@ uint32_t serial_start(void)
     m_state = SERIAL_STATE_RUNNING;
 
     return NRF_SUCCESS;
-
-    /* Send device started event. */
-//    serial_packet_t * p_start_packet;
-    /* Should not fail: */
-//    err_code = serial_packet_buffer_get(sizeof(serial_evt_device_started_t) + SERIAL_PACKET_OVERHEAD, &p_start_packet);
-//    if (NRF_SUCCESS != err_code)
-//    {
-//        NRF_LOG_ERROR("Unable to get a serial packet buffer, error_code: %u", err_code);
-//        m_state = SERIAL_STATE_INITIALIZED;
-//    }
-//    else
-//    {
-//        p_start_packet->opcode = SERIAL_OPCODE_EVT_DEVICE_STARTED;
-//        p_start_packet->payload.evt.started.operating_mode = SERIAL_DEVICE_OPERATING_MODE_APPLICATION;
-//        p_start_packet->payload.evt.started.hw_error = NRF_POWER->RESETREAS & RESET_REASONS_HW_ERROR;
-//        p_start_packet->payload.evt.started.data_credit_available = SERIAL_PACKET_PAYLOAD_MAXLEN;
-//        serial_tx(p_start_packet);
-//    }
-//    return err_code;
 }
 
 uint32_t serial_packet_buffer_get(uint16_t packet_len, serial_packet_t ** pp_packet)

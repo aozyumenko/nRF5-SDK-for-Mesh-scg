@@ -24,9 +24,9 @@
 #include "ctrl_led.h"
 #include "example_common.h"
 
-
 /* logging */
 #include "nrf5_sdk_log.h"
+
 
 
 /*********** Definitions ***********/
@@ -55,11 +55,6 @@ static struct {
 } m_fast_cache[FAST_CACHE_SIZE];
 static int m_fast_cache_idx = 0;
 #endif /* ENABLE_FAST_CACHE */
-
-// FIXME: drop
-extern int m_packet_in_count;
-extern int m_packet_in_repeats;
-//extern size_t m_data_len;
 
 
 
@@ -94,24 +89,20 @@ static inline bool check_fast_cache(const uint8_t *p_data, uint32_t length)
 
 static void packet_in(uint8_t ad_type, const uint8_t *p_data, uint32_t data_len)
 {
-    serial_packet_t *p_packet;
-    uint32_t status;
-
     if (!m_initialized || !m_enabled)
         return;
-
-m_packet_in_count++;
 
 #ifdef ENABLE_FAST_CACHE
     if (ad_type == AD_TYPE_MESH) {
         if (!check_fast_cache(p_data, data_len)) {
-m_packet_in_repeats++;
             return;
         }
     }
 #endif /* ENABLE_FAST_CACHE */
 
     UNUSED_VARIABLE(serial_ad_data_send(ad_type, p_data, data_len));
+
+    ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
 }
 
 
@@ -201,7 +192,7 @@ uint32_t proxy_start(void)
     m_enabled = true;
     advertiser_enable(&m_advertising.advertiser);
 
-//    ctrl_led_set(LED_1, false);
+    ctrl_led_set(LED_1, false);
 
     return NRF_SUCCESS;
 }
@@ -215,7 +206,7 @@ uint32_t proxy_stop(void)
 
     bearer_event_flag_set(m_proxy_stop_event_flag);
 
-//        ctrl_led_set(LED_1, true);
+    ctrl_led_set(LED_1, true);
 
     return NRF_SUCCESS;
 }
@@ -229,16 +220,14 @@ void ad_data_proxy_tx(nrf_mesh_tx_token_t token, const uint8_t *data, int length
         serial_cmd_rsp_send(SERIAL_OPCODE_CMD_AD_DATA_SEND, token,
                             SERIAL_STATUS_ERROR_INVALID_STATE, NULL, 0);
     } else {
+        p_adv_packet = advertiser_packet_alloc(&m_advertising.advertiser, length);
+        if (p_adv_packet != NULL) {
+            p_adv_packet->token = token;
+            p_adv_packet->config.repeats = CORE_TX_REPEAT_ORIGINATOR_DEFAULT;
+            memcpy(p_adv_packet->packet.payload, data, length);
+            advertiser_packet_send(&m_advertising.advertiser, p_adv_packet);
+        }
 
-    p_adv_packet = advertiser_packet_alloc(&m_advertising.advertiser, length);
-    if (p_adv_packet != NULL) {
-        p_adv_packet->token = token;
-        p_adv_packet->config.repeats = CORE_TX_REPEAT_ORIGINATOR_DEFAULT;
-        memcpy(p_adv_packet->packet.payload, data, length);
-        advertiser_packet_send(&m_advertising.advertiser, p_adv_packet);
-    }
-
-//    ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
-
+        ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
     }
 }
