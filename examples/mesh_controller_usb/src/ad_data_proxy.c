@@ -102,7 +102,7 @@ static void packet_in(uint8_t ad_type, const uint8_t *p_data, uint32_t data_len)
 
     UNUSED_VARIABLE(serial_ad_data_send(ad_type, p_data, data_len));
 
-    ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
+    ctrl_led_blink(LED_1, LED_BLINK_SHORT_INTERVAL_MS);
 }
 
 
@@ -192,8 +192,6 @@ uint32_t proxy_start(void)
     m_enabled = true;
     advertiser_enable(&m_advertising.advertiser);
 
-    ctrl_led_set(LED_1, false);
-
     return NRF_SUCCESS;
 }
 
@@ -205,8 +203,6 @@ uint32_t proxy_stop(void)
     }
 
     bearer_event_flag_set(m_proxy_stop_event_flag);
-
-    ctrl_led_set(LED_1, true);
 
     return NRF_SUCCESS;
 }
@@ -228,6 +224,6 @@ void ad_data_proxy_tx(nrf_mesh_tx_token_t token, const uint8_t *data, int length
             advertiser_packet_send(&m_advertising.advertiser, p_adv_packet);
         }
 
-        ctrl_led_blink_count(LED_1, 1, LED_BLINK_SHORT_INTERVAL_MS, 0);
+        ctrl_led_blink(LED_1, LED_BLINK_SHORT_INTERVAL_MS);
     }
 }

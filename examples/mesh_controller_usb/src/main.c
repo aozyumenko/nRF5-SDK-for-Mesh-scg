@@ -67,7 +67,6 @@ static void initialize(void)
 
     ERROR_CHECK(app_timer_init());
     ctrl_led_init();
-    ctrl_led_set(LED_1, true);
 
     NRF_LOG_INFO("Initializing serial interface...");
     ERROR_CHECK(serial_init());

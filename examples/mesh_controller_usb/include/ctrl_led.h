@@ -10,13 +10,10 @@
 #include "nrfx_gpiote.h"
 
 
+void ctrl_led_init(void);
 
-bool ctrl_led_get(nrfx_gpiote_pin_t led_pin);
 void ctrl_led_set(nrfx_gpiote_pin_t led_pin, bool value);
 void ctrl_led_blink(nrfx_gpiote_pin_t led_pin, uint32_t delay_ms);
-void ctrl_led_blink_count(nrfx_gpiote_pin_t led_pin, int count, uint32_t delay_ms, uint32_t pause_ms);
-
-void ctrl_led_init(void);
 
 
 
