@@ -76,12 +76,12 @@ static uint16_t range_vector_bytes_get(uint16_t property_id)
 
 #ifdef SENSOR_MOTION_SENSED_ENABLE
     case SENSOR_MOTION_SENSED_PROPERTY_ID:   /* Intentionally fall through. */
-        return sizeof(pir_data_size_t);
+        return sizeof(chr_percentage8_t);
 #endif /* SENSOR_MOTION_SENSED_ENABLE */
 
 #ifdef SENSOR_PRESENCE_DETECT_ENABLE
     case SENSOR_PRESENCE_DETECT_PROPERTY_ID:
-        return sizeof(pir_data_size_t);
+        return sizeof(chr_boolean_t);
 #endif /* SENSOR_PRESENCE_DETECT_ENABLE */
 
 #ifdef SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
@@ -295,7 +295,7 @@ static uint32_t cadence_update(sensor_cadence_t * p, uint8_t * p_in, uint16_t by
     return NRF_SUCCESS;
 }
 
-#if SENSOR_MOTION_SENSED_ENABLE
+#if SENSOR_MOTION_SENSED_ENABLE || SENSOR_PRESENCE_DETECT_ENABLE
 static bool chr_uint8_in_fast_region(sensor_cadence_t * p)
 {
     NRF_MESH_ASSERT(p);
@@ -409,7 +409,7 @@ static bool chr_uint8_delta_trigger_fast(sensor_cadence_t * p)
                                      *p->p_trigger_delta_down);
     }
 }
-#endif /* SENSOR_MOTION_SENSED_ENABLE */
+#endif /* SENSOR_MOTION_SENSED_ENABLE || SENSOR_PRESENCE_DETECT_ENABLE */
 
 
 #if SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE || SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
@@ -1409,6 +1409,16 @@ void sensor_initialize(app_sensor_server_t *p_server)
                 break;
             }
 #endif /* SENSOR_MOTION_SENSED_ENABLE */
+
+#ifdef SENSOR_PRESENCE_DETECT_ENABLE
+            case SENSOR_PRESENCE_DETECT_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint8_in_fast_region;
+                p->delta_trigger_fast = chr_uint8_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESENCE_DETECT_ENABLE */
 
 #ifdef SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
         case SENSOR_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID:
