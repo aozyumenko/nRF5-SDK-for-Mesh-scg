@@ -149,7 +149,7 @@ static inline uint64_t publish_period_get(access_model_handle_t model_handle)
             resolution_ms = 10000;
             break;
         case ACCESS_PUBLISH_RESOLUTION_10MIN:
-            resolution_ms = 10000 * 6;
+            resolution_ms = 10000 * 60;
             break;
         default:
             __LOG(LOG_SRC_APP, LOG_LEVEL_ERROR,
