@@ -335,7 +335,7 @@ static bool chr_uint8_delta_value(uint16_t current,
      */
 
     __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
-              "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+              "Formatted trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff: %u\n",
               current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
     return (current > previous) ? ((current - previous) >= delta_up)
@@ -369,7 +369,7 @@ static bool chr_uint8_delta_percent(uint16_t current,
     uint16_t diff_percentage = 100 * ((100 * difference) / previous);
 
     __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
-          "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d\n",
+          "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u\n",
           current, previous, delta_up, delta_down, diff_percentage);
 
     return diff_percentage >= trigger;
@@ -517,7 +517,7 @@ static bool chr_uint16_delta_value(uint16_t current,
                                    uint16_t delta_down)
 {
     __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
-        "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+        "Formatted trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff: %u\n",
         current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
     return (current > previous) ? ((current - previous) >= delta_up)
@@ -547,7 +547,7 @@ static bool chr_uint16_delta_percent(uint16_t current,
     uint16_t diff_percentage = 100 * ((100 * difference) / previous);
 
     __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
-        "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
+        "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u",
         current, previous, delta_up, delta_down, diff_percentage);
 
     return diff_percentage >= trigger;
@@ -650,7 +650,91 @@ static bool chr_int16_delta_trigger_fast(sensor_cadence_t * p)
 #endif /* SENSOR_PRECISE_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
 
 
-#if SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE || SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE
+#if SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE
+static bool chr_uint24_in_fast_region(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    /* uint32 value */
+    uint32_t value = *(uint32_t *)p->p_current_value & 0x00ffffff;
+    uint32_t fast_cadence_low = *(uint32_t *)p->p_fast_cadence_low & 0x00ffffff;
+    uint32_t fast_cadence_high = *(uint32_t *)p->p_fast_cadence_high & 0x00ffffff;
+
+    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "UINT24 In Fast Region: value: %u, low: %u, high: %u, in_fast_region: %d\n",
+        value, fast_cadence_low, fast_cadence_high,
+        (fast_cadence_high >= fast_cadence_low)
+            ? (value >= fast_cadence_low) && (value <= fast_cadence_high)
+            : (value > fast_cadence_low) || (value < fast_cadence_high));
+
+    /* @tagMeshMdlSp Section 4.1.3 */
+    return  (fast_cadence_high >= fast_cadence_low)
+        ? (value >= fast_cadence_low) && (value <= fast_cadence_high)
+        : (value > fast_cadence_low) || (value < fast_cadence_high);
+}
+
+
+static bool chr_uint24_delta_value(uint32_t current,
+                                   uint32_t previous,
+                                   uint32_t delta_up,
+                                   uint32_t delta_down)
+{
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+        current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
+
+    return (current > previous) ? ((current - previous) >= delta_up)
+                                : ((previous - current) >= delta_down);
+}
+
+static bool chr_uint24_delta_percent(uint32_t current,
+                                     uint32_t previous,
+                                     uint16_t delta_up,
+                                     uint16_t delta_down)
+{
+    if (!previous) {
+        return true;
+    }
+
+    uint16_t trigger;
+    uint32_t difference;
+
+    if (previous > current) {
+        trigger = delta_down;
+        difference = previous - current;
+    } else {
+        trigger = delta_up;
+        difference = current - previous;
+    }
+
+    uint16_t diff_percentage = 100 * ((100 * difference) / previous);
+
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u",
+        current, previous, delta_up, delta_down, diff_percentage);
+
+    return diff_percentage >= trigger;
+}
+
+static bool chr_uint24_delta_trigger_fast(sensor_cadence_t * p)
+{
+    NRF_MESH_ASSERT(p);
+
+    if (p->trigger_type) {
+        return chr_uint24_delta_percent(*(uint32_t *)p->p_current_value & 0x00ffffff,
+                                        *(uint32_t *)p->p_previous_value & 0x00ffffff,
+                                        *(uint16_t *)p->p_trigger_delta_up,
+                                        *(uint16_t *)p->p_trigger_delta_down);
+    } else {
+        return chr_uint24_delta_value(*(uint32_t *)p->p_current_value & 0x00ffffff,
+                                      *(uint32_t *)p->p_previous_value & 0x00ffffff,
+                                      *(uint32_t *)p->p_trigger_delta_up,
+                                      *(uint32_t *)p->p_trigger_delta_down);
+    }
+}
+#endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE */
+
+
+#if SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE
 static bool chr_uint32_in_fast_region(sensor_cadence_t * p)
 {
     NRF_MESH_ASSERT(p);
@@ -659,6 +743,12 @@ static bool chr_uint32_in_fast_region(sensor_cadence_t * p)
     uint32_t value = *(uint32_t *)p->p_current_value;
     uint32_t fast_cadence_low = *(uint32_t *)p->p_fast_cadence_low;
     uint32_t fast_cadence_high = *(uint32_t *)p->p_fast_cadence_high;
+
+    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "UINT32 In Fast Region: value: %u, low: %u, high: %u, in_fast_region: %d\n",
+        value, fast_cadence_low, fast_cadence_high,
+        (fast_cadence_high >= fast_cadence_low)
+            ? (value >= fast_cadence_low) && (value <= fast_cadence_high)
+            : (value > fast_cadence_low) || (value < fast_cadence_high));
 
     /* @tagMeshMdlSp Section 4.1.3 */
     return  (fast_cadence_high >= fast_cadence_low)
@@ -673,7 +763,7 @@ static bool chr_uint32_delta_value(uint32_t current,
                                    uint32_t delta_down)
 {
     __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
-        "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
+        "Formatted trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff: %u\n",
         current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
     return (current > previous) ? ((current - previous) >= delta_up)
@@ -703,7 +793,7 @@ static bool chr_uint32_delta_percent(uint32_t current,
     uint16_t diff_percentage = 100 * ((100 * difference) / previous);
 
     __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
-        "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
+        "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u",
         current, previous, delta_up, delta_down, diff_percentage);
 
     return diff_percentage >= trigger;
@@ -725,7 +815,7 @@ static bool chr_uint32_delta_trigger_fast(sensor_cadence_t * p)
                                       *(uint32_t *)p->p_trigger_delta_down);
     }
 }
-#endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE || SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE */
+#endif /* SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE */
 
 
 static uint16_t mpid_a_value_marshall(sensor_cadence_t * p, uint8_t * buffer, uint16_t buffer_bytes)
@@ -969,17 +1059,8 @@ static sensor_cadence_t * cadence_new(uint16_t property_id)
     return cadence_initialize(p, property_id, range_vector_bytes, delta_vector_bytes, total_bytes);
 }
 
-static bool cadence_activate(sensor_cadence_t * p, uint64_t publish_period_us)
+static bool cadence_restart(sensor_cadence_t * p, uint64_t publish_period_us)
 {
-    uint64_t min_us;
-    uint32_t status;
-
-    NRF_MESH_ASSERT(p);
-
-    /* Abort the instance's cadence timer.
-     */
-    model_timer_abort(&p->timer);
-
     /* @tagMeshMdlSp Section 4.1.3:
      * For sensor values in the fast region "... messages shall be published every Publish Period
      * (configured for the model) divided by the Fast Cadence Period Divisor state."
@@ -990,27 +1071,12 @@ static bool cadence_activate(sensor_cadence_t * p, uint64_t publish_period_us)
      * 4.1.3.2), Status Trigger Delta Down (see Section 4.1.3.3), and the Status Trigger Delta Up
      * (see Section 4.1.3.4).
      */
-
-    /* If the value of the general sensor publish period, publish_period_us, is 0, then no general
-     * publish period is set. In this case, the value of period_us becomes 0. This inhibits fast
-     * cadence.
-     */
-
-    /* Initially, cadence period, period_us, is the same as publish_period_us.
-     */
-    uint64_t period_us = publish_period_us;
-    /* Fast cadence selection reduces the period.
-     */
-    if (p->in_fast_region(p))
+    if (publish_period_us > 0 && !model_timer_is_running(&p->timer) && p->in_fast_region(p))
     {
-        period_us >>= p->fast_period_exponent;
-    }
+        uint64_t period_us = publish_period_us >> p->fast_period_exponent;
+        uint64_t min_us;
+        uint32_t status;
 
-    /* If fast cadence publish period is less than the general sensor publish period, set the timer
-       for this sensor to deliver fast cadence publications.
-     */
-    if (period_us < publish_period_us)
-    {
         /* @tagMeshMdlSp Section 4.1.3.5:
          * "The Status Min Interval field is a 1-octet value that shall control the minimum interval
          * between publishing two consecutive Sensor Status messages. The value is represented as 2^n
@@ -1037,6 +1103,20 @@ static bool cadence_activate(sensor_cadence_t * p, uint64_t publish_period_us)
     }
 
     return true;
+}
+
+static bool cadence_activate(sensor_cadence_t * p, uint64_t publish_period_us)
+{
+    NRF_MESH_ASSERT(p);
+
+    /* Abort the instance's cadence timer.
+     */
+    model_timer_abort(&p->timer);
+
+    /*
+     Restart the cadence if necessary.
+     */
+    return cadence_restart(p, publish_period_us) == NRF_SUCCESS;
 }
 
 static sensor_cadence_t * cadence_instance_get(app_sensor_server_t * p_server,
@@ -1434,8 +1514,8 @@ void sensor_initialize(app_sensor_server_t *p_server)
         case SENSOR_PRESENT_DEVICE_INPUT_POWER_PROPERTY_ID:
             {
                 p = cadence_create(p_server, i);
-                p->in_fast_region     = chr_uint32_in_fast_region;
-                p->delta_trigger_fast = chr_uint32_delta_trigger_fast;
+                p->in_fast_region     = chr_uint24_in_fast_region;
+                p->delta_trigger_fast = chr_uint24_delta_trigger_fast;
                 break;
             }
 #endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE */
@@ -1633,6 +1713,10 @@ uint32_t sensor_status_publish(app_sensor_server_t * p_server, uint16_t property
     }
 
     cadence_status_get(p, p_out, &bytes);
+
+    uint64_t publish_period_us = publish_period_get(p_server->server.sensor_srv.model_handle);
+    (void) cadence_restart(p, publish_period_us);
+
     if (!p->delta_trigger_fast(p))
     {
         return NRF_SUCCESS;
