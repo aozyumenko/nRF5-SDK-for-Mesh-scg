@@ -219,6 +219,7 @@ uint32_t app_onoff_client_init(app_onoff_client_t *app,
                                uint8_t element_index,
                                app_onoff_client_status_cb_t status_cb)
 {
+    const app_timer_id_t m_timer __attribute__((unused)) = m_onoff_client_timer;
     uint32_t status;
 
     app->state = ONOFF_CLIENT_IDLE;
