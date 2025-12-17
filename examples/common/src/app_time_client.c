@@ -8,21 +8,14 @@
 
 #include <stdint.h>
 
-//#include "access.h"
-//#include "access_config.h"
-//#include "app_timer.h"
 #include "app_error.h"
 #include "utils.h"
 #include "mesh_app_utils.h"
 #include "sdk_config.h"
 #include "time_client.h"
 
-#include "nrf5_sdk_log.h"
+#include "log.h"
 
-
-// FIXME!!!!!!!!!!!!!!!!!
-//#include <time.h>
-//extern time_t m_time;
 
 
 /* time client callbacks */
@@ -36,13 +29,13 @@ static void time_status_cb(const time_client_t *p_self,
     int tai_utc_delta = p_in->tai_utc_delta - 255;
     int time_zone_offset = (p_in->time_zone_offset - 64) * SECONDS_15_MINUTES;
 
-    // update time
+    /* update time */
     uint64_t utc_seconds = p_in->TAI_seconds + MESH_UNIX_EPOCH_DIFF + tai_utc_delta;
     uint64_t local_seconds = utc_seconds + time_zone_offset;
-//    uint64_t device_seconds = local_seconds - p_app->tz_offset;
 
-    NRF_LOG_INFO("    tai_utc_delta=%d, tai_seconds=%d, utc_seconds=%llu, local_seconds=%d",
-            tai_utc_delta, p_in->TAI_seconds + MESH_UNIX_EPOCH_DIFF, utc_seconds, local_seconds);
+    __LOG(LOG_SRC_APP, LOG_LEVEL_DBG1,
+        "Set time status: tai_utc_delta: %d, tai_seconds: %d, utc_seconds: %llu, local_seconds: %d\n",
+        tai_utc_delta, p_in->TAI_seconds + MESH_UNIX_EPOCH_DIFF, utc_seconds, local_seconds);
 
     p_app->set_cb(p_app, local_seconds);
 }
