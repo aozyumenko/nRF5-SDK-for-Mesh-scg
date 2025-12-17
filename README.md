@@ -1,6 +1,25 @@
 # nRF5 SDK for Mesh SCG edition
 
 ## Difference from the official repository
+
+### Mesh core
+- Added following provisioning output OOB actions: None, Blink, Numeric.
+
+### Applications
+#### App Sensor
+- Changed the behavior of the Fast Cadence: now the fast period starts as soon as the value is within the fast region.
+- Supported following characteristics:
+    - DESIRED_AMBIENT_TEMPERATURE
+    - PRECISE_PRESENT_AMBIENT_TEMPERATURE
+    - PRECISE_TOTAL_DEVICE_ENERGY_USE
+    - PRESENT_AMBIENT_RELATIVE_HUMIDITY
+    - PRESENT_AMBIENT_TEMPERATURE
+    - PRESENT_DEVICE_INPUT_POWER
+    - PRESENT_INDOOR_RELATIVE_HUMIDITY
+    - PRESENT_INPUT_CURRENT
+    - PRESENT_INPUT_VOLTAGE
+    - PRESENT_OUTDOOR_RELATIVE_HUMIDITY
+
 ### New devices added
   - BLE Mesh Network Controller device to operate under BlueZ bluetooth-meshd control.
 
