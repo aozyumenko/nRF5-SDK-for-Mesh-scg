@@ -338,8 +338,8 @@ static bool chr_uint8_delta_value(uint16_t current,
               "Formatted trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff: %u\n",
               current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
-    return (current > previous) ? ((current - previous) >= delta_up)
-                                : ((previous - current) >= delta_down);
+    return (current > previous) ? (delta_up > 0 && (current - previous) >= delta_up)
+                                : (delta_down > 0 && (previous - current) >= delta_down);
 }
 
 static bool chr_uint8_delta_percent(uint16_t current,
@@ -372,7 +372,7 @@ static bool chr_uint8_delta_percent(uint16_t current,
           "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u\n",
           current, previous, delta_up, delta_down, diff_percentage);
 
-    return diff_percentage >= trigger;
+    return trigger > 0 && diff_percentage >= trigger;
 }
 
 static bool chr_uint8_delta_trigger_fast(sensor_cadence_t * p)
@@ -438,8 +438,8 @@ static bool chr_int8_delta_value(int16_t current,
         "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
         current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
-    return (current > previous) ? ((current - previous) >= delta_up)
-                                : ((previous - current) >= delta_down);
+    return (current > previous) ? (delta_up > 0 && (current - previous) >= delta_up)
+                                : (delta_down > 0 && (previous - current) >= delta_down);
 }
 
 static bool chr_int8_delta_percent(int16_t current,
@@ -468,7 +468,7 @@ static bool chr_int8_delta_percent(int16_t current,
         "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
         current, previous, delta_up, delta_down, diff_percentage);
 
-    return diff_percentage >= trigger;
+    return trigger > 0 && diff_percentage >= trigger;
 }
 
 static bool chr_int8_delta_trigger_fast(sensor_cadence_t * p)
@@ -520,8 +520,8 @@ static bool chr_uint16_delta_value(uint16_t current,
         "Formatted trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff: %u\n",
         current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
-    return (current > previous) ? ((current - previous) >= delta_up)
-                                : ((previous - current) >= delta_down);
+    return (current > previous) ? (delta_up > 0 && (current - previous) >= delta_up)
+                                : (delta_down > 0 && (previous - current) >= delta_down);
 }
 
 static bool chr_uint16_delta_percent(uint16_t current,
@@ -550,7 +550,7 @@ static bool chr_uint16_delta_percent(uint16_t current,
         "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u",
         current, previous, delta_up, delta_down, diff_percentage);
 
-    return diff_percentage >= trigger;
+    return trigger > 0 && diff_percentage >= trigger;
 }
 
 static bool chr_uint16_delta_trigger_fast(sensor_cadence_t * p)
@@ -598,8 +598,8 @@ static bool chr_int16_delta_value(int16_t current,
         "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
         current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
-    return (current > previous) ? ((current - previous) >= delta_up)
-                                : ((previous - current) >= delta_down);
+    return (current > previous) ? (delta_up > 0 && (current - previous) >= delta_up)
+                                : (delta_down > 0 && (previous - current) >= delta_down);
 }
 
 static bool chr_int16_delta_percent(int16_t current,
@@ -628,7 +628,7 @@ static bool chr_int16_delta_percent(int16_t current,
         "Unitless trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff percentage: %d",
         current, previous, delta_up, delta_down, diff_percentage);
 
-    return diff_percentage >= trigger;
+    return trigger > 0 && diff_percentage >= trigger;
 }
 
 static bool chr_int16_delta_trigger_fast(sensor_cadence_t * p)
@@ -682,8 +682,8 @@ static bool chr_uint24_delta_value(uint32_t current,
         "Formatted trigger: current: %d, previous: %d, delta up: %d, delta down: %d, diff: %d\n",
         current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
-    return (current > previous) ? ((current - previous) >= delta_up)
-                                : ((previous - current) >= delta_down);
+    return (current > previous) ? (delta_up > 0 && (current - previous) >= delta_up)
+                                : (delta_down > 0 && (previous - current) >= delta_down);
 }
 
 static bool chr_uint24_delta_percent(uint32_t current,
@@ -712,7 +712,7 @@ static bool chr_uint24_delta_percent(uint32_t current,
         "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u",
         current, previous, delta_up, delta_down, diff_percentage);
 
-    return diff_percentage >= trigger;
+    return trigger > 0 && diff_percentage >= trigger;
 }
 
 static bool chr_uint24_delta_trigger_fast(sensor_cadence_t * p)
@@ -766,8 +766,8 @@ static bool chr_uint32_delta_value(uint32_t current,
         "Formatted trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff: %u\n",
         current, previous, delta_up, delta_down, current > previous ? current - previous : previous - current);
 
-    return (current > previous) ? ((current - previous) >= delta_up)
-                                : ((previous - current) >= delta_down);
+    return (current > previous) ? (delta_up > 0 && (current - previous) >= delta_up)
+                                : (delta_down > 0 && (previous - current) >= delta_down);
 }
 
 static bool chr_uint32_delta_percent(uint32_t current,
@@ -796,7 +796,7 @@ static bool chr_uint32_delta_percent(uint32_t current,
         "Unitless trigger: current: %u, previous: %u, delta up: %u, delta down: %u, diff percentage: %u",
         current, previous, delta_up, delta_down, diff_percentage);
 
-    return diff_percentage >= trigger;
+    return trigger > 0 && diff_percentage >= trigger;
 }
 
 static bool chr_uint32_delta_trigger_fast(sensor_cadence_t * p)
@@ -1071,7 +1071,7 @@ static bool cadence_restart(sensor_cadence_t * p, uint64_t publish_period_us)
      * 4.1.3.2), Status Trigger Delta Down (see Section 4.1.3.3), and the Status Trigger Delta Up
      * (see Section 4.1.3.4).
      */
-    if (publish_period_us > 0 && !model_timer_is_running(&p->timer) && p->in_fast_region(p))
+    if (publish_period_us > 0 && p->fast_period_exponent > 0 && !model_timer_is_running(&p->timer) && p->in_fast_region(p))
     {
         uint64_t period_us = publish_period_us >> p->fast_period_exponent;
         uint64_t min_us;
@@ -1116,7 +1116,7 @@ static bool cadence_activate(sensor_cadence_t * p, uint64_t publish_period_us)
     /*
      Restart the cadence if necessary.
      */
-    return cadence_restart(p, publish_period_us) == NRF_SUCCESS;
+    return cadence_restart(p, publish_period_us);
 }
 
 static sensor_cadence_t * cadence_instance_get(app_sensor_server_t * p_server,
@@ -1706,6 +1706,7 @@ uint32_t sensor_status_publish(app_sensor_server_t * p_server, uint16_t property
     sensor_status_msg_pkt_t * p_out = (sensor_status_msg_pkt_t *)p_server->p_message_buffer;
     uint16_t bytes;
     sensor_cadence_t * p = cadence_instance_get(p_server, property_id);
+    uint64_t publish_period_us = publish_period_get(p_server->server.sensor_srv.model_handle);
 
     if (p == NULL)
     {
@@ -1714,7 +1715,12 @@ uint32_t sensor_status_publish(app_sensor_server_t * p_server, uint16_t property
 
     cadence_status_get(p, p_out, &bytes);
 
-    uint64_t publish_period_us = publish_period_get(p_server->server.sensor_srv.model_handle);
+    if (publish_period_us == 0)
+    {
+        cadence_unsolicited_status_send(p);
+        return NRF_SUCCESS;
+    }
+
     (void) cadence_restart(p, publish_period_us);
 
     if (!p->delta_trigger_fast(p))
