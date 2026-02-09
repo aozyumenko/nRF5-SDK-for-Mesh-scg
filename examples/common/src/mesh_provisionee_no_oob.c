@@ -27,6 +27,7 @@
 #include "proxy.h"
 #include "mesh_opt_gatt.h"
 #include "nrf_mesh_events.h"
+#include "log.h"
 
 #define MESH_PROVISIONEE_SDH_STATE_PRIORITY 1
 
@@ -258,9 +259,14 @@ static void prov_evt_handler(const nrf_mesh_prov_evt_t * p_evt)
 
         case NRF_MESH_PROV_EVT_COMPLETE:
         {
-            APP_ERROR_CHECK(mesh_stack_provisioning_data_store(
+            uint32_t status = mesh_stack_provisioning_data_store(
                                     p_evt->params.complete.p_prov_data,
-                                    p_evt->params.complete.p_devkey));
+                                    p_evt->params.complete.p_devkey);
+            if (status != NRF_SUCCESS)
+            {
+                __LOG(LOG_SRC_APP, LOG_LEVEL_ERROR, "failed to store provisioning data\n");
+                mesh_stack_device_reset();
+            }
             m_device_provisioned = true;
             break;
         }
