@@ -98,9 +98,6 @@ uint32_t serial_start(void);
  */
 uint32_t serial_packet_buffer_get(uint16_t packet_len, serial_packet_t ** pp_packet);
 
-/* TODO: add comment */
-uint32_t serial_packet_buffer_discard(serial_packet_t *p_packet);
-
 /**
  * Queues a packet for transmission on the serial interface.
  *
@@ -127,15 +124,22 @@ uint8_t serial_translate_error(uint32_t status);
  */
 serial_state_t serial_state_get(void);
 
+// TODO: add comment
+uint32_t serial_ad_data_send(uint8_t ad_type, const uint8_t *p_data, uint16_t length);
+
 /**
  * Send a simple command response to the given opcode, with the given serial status.
  *
- * @param[in] opcode Opcode to reply to.
- * @param[in] status Reply status code.
- * @param[in] p_data Additional data to be added to the reply (optional).
- * @param[in] length Length of additional data.
+ * @param[in]                   opcode Opcode to reply to.
+ * @param[in]                   token Token of the command we are reply to.
+ * @param[in]                   status Reply status code.
+ * @param[in]                   p_data Additional data to be added to the reply (optional).
+ * @param[in]                   length Length of additional data.
+ *
+ * @retval     NRF_SUCCESS      The packet is sended successfully.
+ * TODO: continue
  */
-void serial_cmd_rsp_send(uint8_t opcode, uint32_t token, uint8_t status, const uint8_t * p_data, uint16_t length);
+uint32_t serial_cmd_rsp_send(uint8_t opcode, uint32_t token, uint8_t status, const uint8_t * p_data, uint16_t length);
 
 /** @} end of SERIAL_INTERFACE */
 

@@ -17,6 +17,9 @@
 #include "advertiser.h"
 #include "ble_gap.h"
 
+/* logging */
+#include "nrf5_sdk_log.h"
+
 
 
 /* local typedefs */
@@ -117,6 +120,8 @@ static void handle_cmd_ad_data_send(const serial_packet_t *p_cmd)
             ad_data_proxy_tx((nrf_mesh_tx_token_t)p_cmd->payload.cmd.token,
                              p_cmd->payload.cmd.payload.ad_data.data,
                              p_cmd->length - SERIAL_PACKET_OVERHEAD - SERIAL_CMD_OVERHEAD);
+//            serial_cmd_rsp_send(SERIAL_OPCODE_CMD_AD_DATA_SEND, p_cmd->payload.cmd.token,
+//                                SERIAL_STATUS_SUCCESS, NULL, 0);
             break;
         default:
             serial_cmd_rsp_send(p_cmd->opcode, p_cmd->payload.cmd.token,
@@ -145,6 +150,8 @@ static void handle_cmd_hk_data_get(const serial_packet_t *p_cmd)
     rsp.alloc_fail_count = m_hk_data.alloc_fail_count;
     rsp.rx_fail_count = m_hk_data.rx_fail_count;
 
+NRF_LOG_DEBUG("%s(): alloc_fail_count=%d, rx_fail_count=%d", __func__, m_hk_data.alloc_fail_count, m_hk_data.rx_fail_count);
+
     serial_cmd_rsp_send(p_cmd->opcode,
                         p_cmd->payload.cmd.token,
                         SERIAL_STATUS_SUCCESS,
@@ -155,6 +162,8 @@ static void handle_cmd_hk_data_get(const serial_packet_t *p_cmd)
 static void handle_cmd_hk_data_clear(const serial_packet_t *p_cmd)
 {
     memset(&m_hk_data, 0, sizeof(m_hk_data));
+
+NRF_LOG_DEBUG("%s()", __func__);
 
     serial_cmd_rsp_send(p_cmd->opcode,
                         p_cmd->payload.cmd.token,

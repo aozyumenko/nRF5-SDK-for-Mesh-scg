@@ -1,7 +1,8 @@
 /* Copyright (c) 2025, Alexander Ozumenko
  * All rights reserved.
- *
  */
+
+#include <stdint.h>
 
 #include "nrf_delay.h"
 #include "boards.h"
@@ -14,20 +15,22 @@
 #include "nrf_mesh_config_examples.h"
 #include "mesh_opt_prov.h"
 #include "app_timer.h"
+#include "app_usbd.h"
 #include "ctrl_led.h"
 #include "example_common.h"
 #include "nrf_mesh_configure.h"
 
+/* logging */
+#include "nrf5_sdk_log.h"
+
+
+
 /*definitions */
-
-
-/*forward declaration of static functions */
 
 
 /* static variables */
 
 static bool m_device_provisioned;
-
 
 
 static void mesh_init(void)
@@ -42,8 +45,8 @@ static void mesh_init(void)
     switch (status)
     {
         case NRF_ERROR_INVALID_DATA:
-            __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Data in the persistent memory was corrupted. Device starts as unprovisioned.\n");
-            __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Reboot device before starting of the provisioning process.\n");
+            NRF_LOG_INFO("Data in the persistent memory was corrupted. Device starts as unprovisioned.");
+            NRF_LOG_INFO("Reboot device before starting of the provisioning process.");
             break;
         case NRF_SUCCESS:
             break;
@@ -51,43 +54,40 @@ static void mesh_init(void)
             ERROR_CHECK(status);
     }
 
-    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Initializing serial interface...\n");
-    ERROR_CHECK(serial_init());
-
-    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Initializing BLE Advertizing Data proxy interface...\n");
+    NRF_LOG_INFO("Initializing BLE Advertizing Data proxy interface...");
     ERROR_CHECK(ad_data_proxy_init());
 }
 
 
 static void initialize(void)
 {
-#if defined(NRF51) && defined(NRF_MESH_STACK_DEPTH)
-    stack_depth_paint_stack();
-#endif
-    __LOG_INIT(LOG_MSK_DEFAULT | LOG_SRC_ACCESS | LOG_SRC_SERIAL | LOG_SRC_APP, LOG_LEVEL_INFO, log_callback_rtt);
-    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "----- Bluetooth Mesh Controller Application -----\n");
+    ERROR_CHECK(NRF_LOG_INIT(NULL));
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+    NRF_LOG_INFO("----- Bluetooth Mesh Controller Application -----");
 
     ERROR_CHECK(app_timer_init());
-
     ctrl_led_init();
 
-    ble_stack_init();
+    NRF_LOG_INFO("Initializing serial interface...");
+    ERROR_CHECK(serial_init());
 
+    ble_stack_init();
     mesh_init();
 
-    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Initialization complete!\n");
+    NRF_LOG_INFO("Initialization complete!");
 }
 
 
 static void start(void)
 {
-    ERROR_CHECK(serial_start());
-
     mesh_app_uuid_print(nrf_mesh_configure_device_uuid_get());
 
     ERROR_CHECK(mesh_stack_start());
 
-    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Bluetooth Mesh Controller Application started!\n");
+    NRF_LOG_INFO("Statrting serial interface...");
+    ERROR_CHECK(serial_start());
+
+    NRF_LOG_INFO("Bluetooth Mesh Controller Application started!");
 }
 
 
@@ -97,9 +97,9 @@ int main(void)
     initialize();
     start();
 
-    ctrl_led_set(LED_1, true);
-
     for (;;) {
+        while (app_usbd_event_queue_process()) {}
+        UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
         (void)sd_app_evt_wait();
     }
 }

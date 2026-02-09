@@ -20,18 +20,11 @@
 
 
 
-#ifndef LEDS_ACTIVE_STATE
-#define LEDS_ACTIVE_STATE 1
-#endif /* LEDS_ACTIVE_STATE */
-
-
-
 /* declarations */
 
 enum led_mode_e {
     LED_MODE_ONOFF = 0,
-    LED_MODE_BLINK,
-    LED_MODE_COUNT
+    LED_MODE_BLINK
 };
 
 
@@ -44,11 +37,6 @@ typedef struct led_state_s {
 
     /* blink and counter configuration */
     uint32_t delay_ticks;
-    uint32_t pause_ticks;
-    int count;
-
-    /* counter status */
-    int cur_count;
 
     /* APP timer instance */
     app_timer_id_t timer_id;
@@ -118,29 +106,15 @@ static void led_timer_cb(void * p_context)
     led_state_t *led_state = (led_state_t *)p_context;
 
     switch (led_state->mode) {
-    case LED_MODE_BLINK:
-        ctrl_led_pin_set(led_state->pin, !ctrl_led_pin_get(led_state->pin));
-        APP_ERROR_CHECK(app_timer_start(led_state->timer_id, led_state->delay_ticks, led_state));
-        break;
 
-    case LED_MODE_COUNT:
+    case LED_MODE_BLINK:
         if (ctrl_led_pin_get(led_state->pin)) {
             ctrl_led_pin_set(led_state->pin, false);
-            led_state->cur_count++;
         } else {
             ctrl_led_pin_set(led_state->pin, true);
         }
 
-        if (led_state->cur_count < led_state->count) {
-            APP_ERROR_CHECK(app_timer_start(led_state->timer_id, led_state->delay_ticks, led_state));
-        } else {
-            if (led_state->pause_ticks > 0) {
-                APP_ERROR_CHECK(app_timer_start(led_state->timer_id, led_state->pause_ticks, led_state));
-                led_state->cur_count = 0;
-            } else {
-                led_state->mode = LED_MODE_ONOFF;
-            }
-        }
+        led_state->mode = LED_MODE_ONOFF;
         break;
 
     default:
@@ -150,63 +124,7 @@ static void led_timer_cb(void * p_context)
 
 
 
-/* public API */
-
-bool ctrl_led_get(nrfx_gpiote_pin_t led_pin)
-{
-    led_state_t *led_state = ctrl_led_get_state(led_pin);
-    APP_ERROR_CHECK_BOOL(led_state != NULL);
-
-    return ctrl_led_pin_get(led_state->pin);
-}
-
-
-void ctrl_led_set(nrfx_gpiote_pin_t led_pin, bool value)
-{
-    led_state_t *led_state = ctrl_led_get_state(led_pin);
-    APP_ERROR_CHECK_BOOL(led_state != NULL);
-
-    if (led_state->mode != LED_MODE_ONOFF) {
-        app_timer_stop(led_state->timer_id);
-    }
-    led_state->mode = LED_MODE_ONOFF;
-    ctrl_led_pin_set(led_state->pin, value);
-}
-
-
-void ctrl_led_blink(nrfx_gpiote_pin_t led_pin, uint32_t delay_ms)
-{
-    led_state_t *led_state = ctrl_led_get_state(led_pin);
-    APP_ERROR_CHECK_BOOL(led_state != NULL);
-
-    if (led_state->mode != LED_MODE_ONOFF) {
-        app_timer_stop(led_state->timer_id);
-    }
-
-    led_state->mode = LED_MODE_BLINK;
-    led_state->delay_ticks = APP_TIMER_TICKS(delay_ms);
-    APP_ERROR_CHECK(app_timer_start(led_state->timer_id, led_state->delay_ticks, led_state));
-}
-
-
-void ctrl_led_blink_count(nrfx_gpiote_pin_t led_pin, int count, uint32_t delay_ms, uint32_t pause_ms)
-{
-    led_state_t *led_state = ctrl_led_get_state(led_pin);
-    APP_ERROR_CHECK_BOOL(led_state != NULL);
-
-    if (led_state->mode != LED_MODE_ONOFF) {
-        app_timer_stop(led_state->timer_id);
-    }
-
-    led_state->mode = LED_MODE_COUNT;
-    led_state->count = count;
-    led_state->delay_ticks = APP_TIMER_TICKS(delay_ms);
-    led_state->pause_ticks = APP_TIMER_TICKS(pause_ms);
-
-    led_state->cur_count = 0;
-    APP_ERROR_CHECK(app_timer_start(led_state->timer_id, led_state->delay_ticks, led_state));
-}
-
+/** public API */
 
 /* initialize LEDs driver */
 void ctrl_led_init(void)
@@ -235,4 +153,42 @@ void ctrl_led_init(void)
         m_led_state[i].timer_id = &m_led_state[i].timer_id_data;
         APP_ERROR_CHECK(app_timer_create(&m_led_state[i].timer_id, APP_TIMER_MODE_SINGLE_SHOT, led_timer_cb));
     }
+}
+
+
+void ctrl_led_set(nrfx_gpiote_pin_t led_pin, bool value)
+{
+    led_state_t *led_state = ctrl_led_get_state(led_pin);
+    APP_ERROR_CHECK_BOOL(led_state != NULL);
+
+    if (led_state->mode != LED_MODE_ONOFF) {
+        app_timer_stop(led_state->timer_id);
+    }
+    led_state->mode = LED_MODE_ONOFF;
+    ctrl_led_pin_set(led_state->pin, value);
+}
+
+
+void ctrl_led_blink(nrfx_gpiote_pin_t led_pin, uint32_t delay_ms)
+{
+    led_state_t *led_state = ctrl_led_get_state(led_pin);
+    APP_ERROR_CHECK_BOOL(led_state != NULL);
+
+    if (led_state->mode != LED_MODE_ONOFF) {
+        app_timer_stop(led_state->timer_id);
+    }
+
+    led_state->delay_ticks = APP_TIMER_TICKS(delay_ms);
+
+    if (led_state->mode == LED_MODE_BLINK) {
+        APP_ERROR_CHECK(app_timer_stop(led_state->timer_id));
+    } else {
+        if (ctrl_led_pin_get(led_state->pin)) {
+            ctrl_led_pin_set(led_state->pin, false);
+        } else {
+            ctrl_led_pin_set(led_state->pin, true);
+        }
+        led_state->mode = LED_MODE_BLINK;
+    }
+    APP_ERROR_CHECK(app_timer_start(led_state->timer_id, led_state->delay_ticks, led_state));
 }

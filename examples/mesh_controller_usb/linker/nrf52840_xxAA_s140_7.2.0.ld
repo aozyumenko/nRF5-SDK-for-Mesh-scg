@@ -2,7 +2,7 @@
  * nRF5 SDK for Mesh Application linker script.
  * 24 kB FLASH and 768 B RAM reserved for bootloader.
  *
- * This file is intended for nrf52832_xxAA with the s132_7.2.0 SoftDevice.
+ * This file is intended for nrf52840_xxAA with the s140_7.2.0 SoftDevice.
  */
 
 SEARCH_DIR(.)
@@ -11,12 +11,12 @@ GROUP(-lgcc -lc -lnosys)
 MEMORY
 {
     /* MBR_FLASH (rx)        : ORIGIN = 0x00000000, LENGTH = 0x00001000 */
-    /* SOFTDEVICE_FLASH (rx) : ORIGIN = 0x00001000, LENGTH = 0x00025000 */
+    /* SOFTDEVICE_FLASH (rx) : ORIGIN = 0x00001000, LENGTH = 0x00026000 */
 
-    FLASH (rx)               : ORIGIN = 0x00026000, LENGTH = 0x00051000
-    RAM (rwx)                : ORIGIN = 0x20002df0, LENGTH = 0x0000cf10
+    FLASH (rx)               : ORIGIN = 0x00027000, LENGTH = 0x000d0000
+    RAM (rwx)                : ORIGIN = 0x20002e00, LENGTH = 0x0003cf00
 
-    /* BOOTLOADER_FLASH (rx) : ORIGIN 0x00078000, LENGTH = 0x00006000 */
+    /* BOOTLOADER_FLASH (rx) : ORIGIN 0x000f8000, LENGTH = 0x00006000 */
 }
 
 /* These sections are common to all the linker files and specific to the nRF5 SDK use of section variables. */
