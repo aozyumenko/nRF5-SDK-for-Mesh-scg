@@ -56,6 +56,8 @@ typedef uint32_t chr_power_t;
 typedef int8_t chr_temperature8_t;
 typedef int16_t chr_temperature_t;
 typedef int16_t chr_humidity_t;
+typedef uint32_t chr_pressure_t;
+typedef uint32_t chr_volume_t;
 
 typedef struct __sensor_cadence_t sensor_cadence_t;
 

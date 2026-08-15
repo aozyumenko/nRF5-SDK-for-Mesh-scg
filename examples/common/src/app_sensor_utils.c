@@ -66,7 +66,6 @@
 #define MAXIMIM_FAST_CADENCE_PERIOD_DIVISOR_VALUE (15)
 
 static uint64_t m_minimum_publish_interval;
-static uint8_t * mp_marshalled_data;
 
 /* static function definitions.
  */
@@ -133,6 +132,21 @@ static uint16_t range_vector_bytes_get(uint16_t property_id)
     case SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_PROPERTY_ID:
         return sizeof(chr_temperature_t);
 #endif /* SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_ENABLE */
+
+#ifdef SENSOR_PRESSURE_ENABLE
+    case SENSOR_PRESSURE_PROPERTY_ID:
+        return sizeof(chr_pressure_t);
+#endif /* SENSOR_PRESSURE_ENABLE */
+
+#ifdef SENSOR_VENDOR_VOLUME_COMSUMPTION_ENABLE
+    case SENSOR_VENDOR_VOLUME_CONSUMPTION_PROPERTY_ID:
+        return sizeof(chr_volume_t);
+#endif /* SENSOR_VENDOR_VOLUME_COMSUMPTION_ENABLE */
+
+#ifdef SENSOR_VENDOR_LEAK_DETECT_ENABLE
+    case SENSOR_VENDOR_LEAK_DETECT_PROPERTY_ID:
+        return sizeof(chr_boolean_t);
+#endif
 
     default:
         /* Property ID not supported */
@@ -295,7 +309,7 @@ static uint32_t cadence_update(sensor_cadence_t * p, uint8_t * p_in, uint16_t by
     return NRF_SUCCESS;
 }
 
-#if SENSOR_MOTION_SENSED_ENABLE || SENSOR_PRESENCE_DETECT_ENABLE
+#if SENSOR_MOTION_SENSED_ENABLE || SENSOR_PRESENCE_DETECT_ENABLE || SENSOR_VENDOR_LEAK_DETECT_ENABLE
 static bool chr_uint8_in_fast_region(sensor_cadence_t * p)
 {
     NRF_MESH_ASSERT(p);
@@ -409,7 +423,7 @@ static bool chr_uint8_delta_trigger_fast(sensor_cadence_t * p)
                                      *p->p_trigger_delta_down);
     }
 }
-#endif /* SENSOR_MOTION_SENSED_ENABLE || SENSOR_PRESENCE_DETECT_ENABLE */
+#endif /* uint8_t */
 
 
 #if SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE || SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
@@ -734,7 +748,7 @@ static bool chr_uint24_delta_trigger_fast(sensor_cadence_t * p)
 #endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE */
 
 
-#if SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE
+#if SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE || SENSOR_PRESSURE_ENABLE || SENSOR_VENDOR_VOLUME_COMSUMPTION_ENABLE
 static bool chr_uint32_in_fast_region(sensor_cadence_t * p)
 {
     NRF_MESH_ASSERT(p);
@@ -815,7 +829,7 @@ static bool chr_uint32_delta_trigger_fast(sensor_cadence_t * p)
                                       *(uint32_t *)p->p_trigger_delta_down);
     }
 }
-#endif /* SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE */
+#endif /* uint32_t */
 
 
 static uint16_t mpid_a_value_marshall(sensor_cadence_t * p, uint8_t * buffer, uint16_t buffer_bytes)
@@ -919,11 +933,11 @@ static void cadence_unsolicited_status_send(sensor_cadence_t * p)
     app_sensor_server_t * p_server = (app_sensor_server_t *)p->p_server;
 
     if (p->marshalled_bytes == p->value_marshall(p,
-                                                 mp_marshalled_data,
+                                                 p_server->p_marshalled_data,
                                                  p_server->state.marshalled_list_bytes))
     {
         uint32_t status  = sensor_server_status_publish(&p_server->server.sensor_srv,
-                                                        mp_marshalled_data,
+                                                        p_server->p_marshalled_data,
                                                         p->marshalled_bytes,
                                                         SENSOR_OPCODE_STATUS);
         if (NRF_SUCCESS == status)
@@ -1501,17 +1515,17 @@ void sensor_initialize(app_sensor_server_t *p_server)
 #endif /* SENSOR_PRESENCE_DETECT_ENABLE */
 
 #ifdef SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE
-        case SENSOR_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID:
-        {
+            case SENSOR_PRESENT_AMBIENT_TEMPERATURE_PROPERTY_ID:
+            {
                 p = cadence_create(p_server, i);
                 p->in_fast_region     = chr_int8_in_fast_region;
                 p->delta_trigger_fast = chr_int8_delta_trigger_fast;
                 break;
-        }
+            }
 #endif /* SENSOR_PRESENT_AMBIENT_TEMPERATURE_ENABLE */
 
 #if SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE
-        case SENSOR_PRESENT_DEVICE_INPUT_POWER_PROPERTY_ID:
+            case SENSOR_PRESENT_DEVICE_INPUT_POWER_PROPERTY_ID:
             {
                 p = cadence_create(p_server, i);
                 p->in_fast_region     = chr_uint24_in_fast_region;
@@ -1521,7 +1535,7 @@ void sensor_initialize(app_sensor_server_t *p_server)
 #endif /* SENSOR_PRESENT_DEVICE_INPUT_POWER_ENABLE */
 
 #if SENSOR_PRESENT_INPUT_CURRENT_ENABLE
-        case SENSOR_PRESENT_INPUT_CURRENT_PROPERTY_ID:
+            case SENSOR_PRESENT_INPUT_CURRENT_PROPERTY_ID:
             {
                 p = cadence_create(p_server, i);
                 p->in_fast_region     = chr_uint16_in_fast_region;
@@ -1541,13 +1555,13 @@ void sensor_initialize(app_sensor_server_t *p_server)
 #endif /* SENSOR_PRESENT_INPUT_VOLTAGE_ENABLE */
 
 #ifdef SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE
-        case SENSOR_DESIRED_AMBIENT_TEMPERATURE_PROPERTY_ID:
-        {
+            case SENSOR_DESIRED_AMBIENT_TEMPERATURE_PROPERTY_ID:
+            {
                 p = cadence_create(p_server, i);
                 p->in_fast_region     = chr_int8_in_fast_region;
                 p->delta_trigger_fast = chr_int8_delta_trigger_fast;
                 break;
-        }
+            }
 #endif /* SENSOR_DESIRED_AMBIENT_TEMPERATURE_ENABLE */
 
 #ifdef SENSOR_PRECISE_TOTAL_DEVICE_ENERGY_USE_ENABLE
@@ -1600,6 +1614,36 @@ void sensor_initialize(app_sensor_server_t *p_server)
             }
 #endif /* SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_ENABLE */
 
+#ifdef SENSOR_PRESSURE_ENABLE
+            case SENSOR_PRESSURE_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint32_in_fast_region;
+                p->delta_trigger_fast = chr_uint32_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_PRESSURE_ENABLE */
+
+#ifdef SENSOR_VENDOR_VOLUME_COMSUMPTION_ENABLE
+            case SENSOR_VENDOR_VOLUME_CONSUMPTION_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint32_in_fast_region;
+                p->delta_trigger_fast = chr_uint32_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_VENDOR_VOLUME_COMSUMPTION_ENABLE */
+
+#ifdef SENSOR_VENDOR_LEAK_DETECT_ENABLE
+            case SENSOR_VENDOR_LEAK_DETECT_PROPERTY_ID:
+            {
+                p = cadence_create(p_server, i);
+                p->in_fast_region     = chr_uint8_in_fast_region;
+                p->delta_trigger_fast = chr_uint8_delta_trigger_fast;
+                break;
+            }
+#endif /* SENSOR_VENDOR_LEAK_DETECT_ENABLE */
+
             default :
             {
                 __LOG(LOG_SRC_APP, LOG_LEVEL_ERROR,
@@ -1610,7 +1654,7 @@ void sensor_initialize(app_sensor_server_t *p_server)
         }
     }
 
-    mp_marshalled_data = mesh_mem_alloc(p_server->state.marshalled_list_bytes);
+    p_server->p_marshalled_data = mesh_mem_alloc(p_server->state.marshalled_list_bytes);
 }
 
 void sensor_activate(app_sensor_server_t * p_server,
@@ -1655,7 +1699,7 @@ app_sensor_server_t * sensor_list_activate(app_sensor_server_t * p_server,
         p = PARENT_BY_FIELD_GET(sensor_cadence_t, list_node, p_node);
 
         sensor_current_value_set(p);
-        if (p->marshalled_bytes != p->value_marshall(p, &mp_marshalled_data[i], bytes_remaining))
+        if (p->marshalled_bytes != p->value_marshall(p, &p_server->p_marshalled_data[i], bytes_remaining))
         {
             __LOG(LOG_SRC_APP, LOG_LEVEL_ERROR, "ERR: inconsistent state.\n");
             NRF_MESH_ASSERT(false);
@@ -1667,7 +1711,7 @@ app_sensor_server_t * sensor_list_activate(app_sensor_server_t * p_server,
     }
 
     *p_out_bytes = p_server->state.marshalled_list_bytes - bytes_remaining;
-    memcpy(p_out, mp_marshalled_data, *p_out_bytes);
+    memcpy(p_out, p_server->p_marshalled_data, *p_out_bytes);
 
     return p_server;
 }

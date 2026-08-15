@@ -77,6 +77,15 @@
 #define SENSOR_PRESENT_AMBIENT_RELATIVE_HUMIDITY_PROPERTY_ID    (0x0076)
 #define SENSOR_PRESENT_INDOOR_RELATIVE_HUMIDITY_PROPERTY_ID     (0x00A7)
 #define SENSOR_PRESENT_OUTDOOR_RELATIVE_HUMIDITY_PROPERTY_ID    (0x00A8)
+#define SENSOR_PRESSURE_PROPERTY_ID                             (0x00A9)
+
+/**
+ * Vendor Property identifiers
+ *
+ * There are no Property identifiers in the specification.
+ */
+#define SENSOR_VENDOR_VOLUME_CONSUMPTION_PROPERTY_ID            (0xF000)
+#define SENSOR_VENDOR_LEAK_DETECT_PROPERTY_ID                   (0xF001)
 
 
 /**

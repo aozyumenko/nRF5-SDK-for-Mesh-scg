@@ -104,33 +104,33 @@ typedef uint8_t descriptor_status_t;
  * @param[in] _p_message_buffer         Buffer used for storing messages used by the sensor model.
  * @param[in] _message_buffer_bytes     The number of bytes available in _p_message_buffer.
 */
-#define APP_SENSOR_SERVER_DEF(_name, _force_segmented, _mic_size, _get_cb,     \
-                              _settings_get_cb, _setting_set_cb,               \
-                              _setting_get_cb, _column_get_cb, _series_get_cb, \
-                              _property_array,                                 \
-                              _cadence_timer_ids,                              \
-                              _min_interval_timer_ids,                         \
-                              _descriptor_struct_array, _num_descs,            \
-                              _p_message_buffer, _message_buffer_bytes);       \
-    static uint8_t m_descriptor_buf[_num_descs * SENSOR_DESCRIPTOR_MSG_SIZE];  \
-    static app_sensor_server_t _name =                                         \
-    {                                                                          \
-        .server.settings.force_segmented = _force_segmented,                   \
-        .server.settings.transmic_size = _mic_size,                            \
-        .sensor_get_cb = _get_cb,                                              \
-        .sensor_settings_get_cb = _settings_get_cb,                            \
-        .sensor_setting_set_cb = _setting_set_cb,                              \
-        .sensor_setting_get_cb = _setting_get_cb,                              \
-        .sensor_column_get_cb = _column_get_cb,                                \
-        .sensor_series_get_cb = _series_get_cb,                                \
-        .p_sensor_property_array = _property_array,                            \
-        .p_cadence_timer_ids = _cadence_timer_ids,                             \
-        .p_min_interval_timer_ids = _min_interval_timer_ids,                   \
-        .p_sensor_descriptor = _descriptor_struct_array,                       \
-        .p_descriptor_message = m_descriptor_buf,                              \
-        .sensor_num_desc = _num_descs,                                         \
-        .p_message_buffer = _p_message_buffer,                                 \
-        .message_buffer_bytes = _message_buffer_bytes                          \
+#define APP_SENSOR_SERVER_DEF(_name, _force_segmented, _mic_size, _get_cb,              \
+                              _settings_get_cb, _setting_set_cb,                        \
+                              _setting_get_cb, _column_get_cb, _series_get_cb,          \
+                              _property_array,                                          \
+                              _cadence_timer_ids,                                       \
+                              _min_interval_timer_ids,                                  \
+                              _descriptor_struct_array, _num_descs,                     \
+                              _p_message_buffer, _message_buffer_bytes);                \
+    static uint8_t m_descriptor_buf_##_name[_num_descs * SENSOR_DESCRIPTOR_MSG_SIZE];   \
+    static app_sensor_server_t _name =                                                  \
+    {                                                                                   \
+        .server.settings.force_segmented = _force_segmented,                            \
+        .server.settings.transmic_size = _mic_size,                                     \
+        .sensor_get_cb = _get_cb,                                                       \
+        .sensor_settings_get_cb = _settings_get_cb,                                     \
+        .sensor_setting_set_cb = _setting_set_cb,                                       \
+        .sensor_setting_get_cb = _setting_get_cb,                                       \
+        .sensor_column_get_cb = _column_get_cb,                                         \
+        .sensor_series_get_cb = _series_get_cb,                                         \
+        .p_sensor_property_array = _property_array,                                     \
+        .p_cadence_timer_ids = _cadence_timer_ids,                                      \
+        .p_min_interval_timer_ids = _min_interval_timer_ids,                            \
+        .p_sensor_descriptor = _descriptor_struct_array,                                \
+        .p_descriptor_message = m_descriptor_buf_##_name,                               \
+        .sensor_num_desc = _num_descs,                                                  \
+        .p_message_buffer = _p_message_buffer,                                          \
+        .message_buffer_bytes = _message_buffer_bytes                                   \
     };
 
 
@@ -323,6 +323,10 @@ struct __app_sensor_server_t
     /** mid-app's packed version of the descriptor
      */
     descriptor_status_t * p_descriptor_message;
+
+    /** marshalled data buffer
+    */
+    uint8_t * p_marshalled_data;
 };
 
 /** Initializes the behavioral module for the Sensor model

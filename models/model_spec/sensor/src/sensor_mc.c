@@ -27,7 +27,7 @@ static void     cadence_getter(mesh_config_entry_id_t id, void *p_entry);
 /* mesh config entry associates */
 MESH_CONFIG_ENTRY(m_cadence_entry,
                   SENSOR_CADENCE_EID,
-                  SENSOR_SETUP_SERVER_STORED_STATES_MAX,
+                  SENSOR_SERVER_STORED,
                   SENSOR_CADENCE_STATUS_MAX,
                   cadence_setter,
                   cadence_getter,

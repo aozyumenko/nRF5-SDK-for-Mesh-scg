@@ -18,6 +18,11 @@
 #define SENSOR_CADENCE_EID                      MESH_CONFIG_ENTRY_ID(MESH_OPT_MODEL_FILE_ID, SENSOR_CADENCE_EID_START)
 
 
+/** Number of entry instances required to store the candences  fo all sensor servers.
+ */
+#define SENSOR_SERVER_STORED                    (SENSOR_SETUP_SERVER_INSTANCES_MAX * SENSOR_SETUP_SERVER_STORED_STATES_MAX)
+
+
 
 /* set internal Sensor Cadence configuration */
 uint32_t sensor_mc_cadence_set(uint8_t index,
